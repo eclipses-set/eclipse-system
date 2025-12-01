@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Request New Account - Emergency Alert System</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/sos.png') }}">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    .gradient-bg {
+        background: 
+            linear-gradient(135deg, rgba(136, 58, 58, 0.7), rgba(109, 19, 19, 0.7)),
+            url("{{ url_for('static', filename='images/login-bg.png') }}");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+    }
+    .password-toggle-btn {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        right: 0;
+        padding-right: 12px;
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        z-index: 10;
+        background: none;
+        border: none;
+        outline: none;
+    }
+    .password-toggle-btn:focus {
+        outline: 2px solid #ef4444;
+        outline-offset: 2px;
+        border-radius: 4px;
+    }
+    .password-toggle-icon {
+        width: 20px;
+        height: 10px;
+        color: #9ca3af;
+        transition: color 0.2s ease-in-out;
+    }
+    .password-toggle-btn:hover .password-toggle-icon {
+        color: #4b5563;
+    }
+    .password-input-field {
+        padding-right: 44px !important; 
+    }
+    .fade-in {
+        animation: fadeIn 0.5s ease-in;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .form-input {
+        transition: all 0.3s ease-in-out;
+    }
+    .form-input:focus {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+  </style>
+</head>
+<body class="gradient-bg min-h-screen flex items-center justify-center py-8">
+
+  <div class="max-w-lg w-full space-y-8 p-8">
+    <div class="bg-white rounded-xl shadow-2xl p-8 fade-in">
+      <div class="text-center">
+        <div class="mx-auto h-20 w-20 flex items-center justify-center rounded-full bg-blue-100 mb-4">
+          <i class="fas fa-user-plus text-3xl text-blue-600"></i>
+        </div>
+        <h2 class="mt-4 text-3xl font-extrabold text-gray-900">
+          Request New Account
+        </h2>
+        <p class="mt-2 text-sm text-gray-600">
+          Emergency Alert System - Administrator Access
+        </p>
+        <p class="mt-1 text-xs text-gray-500">
+          Your request will be reviewed by system administrators
+        </p>
+      </div>
+
+      <form class="mt-8 space-y-6" method="POST" action="{{ url_for('request_account') }}">
+        <div class="space-y-4">
+          <div>
+            <label for="fullname" class="block text-sm font-medium text-gray-700">
+              <i class="fas fa-user mr-2"></i>Full Name *
+            </label>
+            <input id="fullname" 
+                   name="fullname" 
+                   type="text" 
+                   required 
+                   class="form-input appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                   placeholder="Enter your full name"
+                   autocomplete="name">
+          </div>
+
+          <div>
+            <label for="email" class="block text-sm font-medium text-gray-700">
+              <i class="fas fa-envelope mr-2"></i>Email Address *
+            </label>
+            <input id="email" 
+                   name="email" 
+                   type="email" 
+                   required 
+                   class="form-input appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                   placeholder="Enter your email address"
+                   autocomplete="email">
+          </div>
+
+          <div>
+            <label for="username" class="block text-sm font-medium text-gray-700">
+              <i class="fas fa-at mr-2"></i>Desired Username *
+            </label>
+            <input id="username" 
+                   name="username" 
+                   type="text" 
+                   required 
+                   class="form-input appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                   placeholder="Choose a unique username"
+                   autocomplete="username">
+            <p class="mt-1 text-xs text-gray-500">Username must be unique and contain only letters, numbers, and underscores</p>
+          </div>
+
+          <div>
+            <label for="password" class="block text-sm font-medium text-gray-700">
+              <i class="fas fa-lock mr-2"></i>Password *
+            </label>
+            <div class="relative">
+              <input id="password" 
+                     name="password" 
+                     type="password" 
+                     required 
+                     class="password-input-field form-input appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                     placeholder="Create a strong password"
+                     autocomplete="new-password">
+              <button type="button" 
+                      class="password-toggle-btn"
+                      onclick="togglePassword('password', 'password-toggle')"
+                      tabindex="-1">
+                <i id="password-toggle" class="password-toggle-icon fas fa-eye"></i>
+              </button>
+            </div>
+            <p class="mt-1 text-xs text-gray-500">Password must be at least 8 characters with uppercase, lowercase, number, and special character</p>
+          </div>
+
+          <div>
+            <label for="confirm_password" class="block text-sm font-medium text-gray-700">
+              <i class="fas fa-lock mr-2"></i>Confirm Password *
+            </label>
+            <div class="relative">
+              <input id="confirm_password" 
+                     name="confirm_password" 
+                     type="password" 
+                     required 
+                     class="password-input-field form-input appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                     placeholder="Confirm your password"
+                     autocomplete="new-password">
+              <button type="button" 
+                      class="password-toggle-btn"
+                      onclick="togglePassword('confirm_password', 'confirm-password-toggle')"
+                      tabindex="-1">
+                <i id="confirm-password-toggle" class="password-toggle-icon fas fa-eye"></i>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label for="role" class="block text-sm font-medium text-gray-700">
+              <i class="fas fa-user-tag mr-2"></i>Desired Role *
+            </label>
+            <select id="role" 
+                    name="role" 
+                    required 
+                    class="form-input appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+              <option value="">Select your role</option>
+              <option value="Security Staff">Security Staff</option>
+              <option value="System Administrator">System Administrator</option>
+              <option value="Dispatcher">Dispatcher</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="reason" class="block text-sm font-medium text-gray-700">
+              <i class="fas fa-comment-alt mr-2"></i>Purpose / Reason for Access
+            </label>
+            <textarea id="reason" 
+                      name="reason" 
+                      rows="3"
+                      class="form-input appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="Briefly explain why you need access to the Emergency Alert System (optional)"></textarea>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <a href="{{ url_for('login') }}" 
+             class="text-sm text-gray-600 hover:text-gray-800 font-medium transition duration-150 ease-in-out">
+            <i class="fas fa-arrow-left mr-1"></i>
+            Back to Login
+          </a>
+          <button type="submit" 
+                  class="group relative flex justify-center py-3 px-6 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
+            <span class="absolute left-0 inset-y-0 flex items-center pl-3">
+              <i class="fas fa-paper-plane text-blue-400 group-hover:text-blue-300"></i>
+            </span>
+            Submit Request
+          </button>
+        </div>
+
+        <div class="mt-6 p-4 bg-blue-50 border-l-4 border-blue-400 rounded">
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <i class="fas fa-info-circle text-blue-400"></i>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm text-blue-700">
+                <strong>Processing Time:</strong> Requests are typically reviewed within 24-48 hours. You will receive a confirmation email and be notified once your request has been processed.
+              </p>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <div class="text-center">
+      <p class="text-sm text-white opacity-75">
+        © {{ current_year }} Emergency Alert System - Authorized Personnel Only
+      </p>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="fixed top-5 right-5 bg-white shadow-xl rounded-lg p-4 border-l-4 
+            {{ 'border-green-500' if 'success' in category else 'border-red-500' if 'error' in category else 'border-blue-500' }}
+            transition transform duration-300 ease-in-out z-50 max-w-sm">
+          <p class="text-sm font-medium 
+              {{ 'text-green-600' if 'success' in category else 'text-red-600' if 'error' in category else 'text-blue-600' }}">
+            {{ message }}
+          </p>
+        </div>
+      {% endfor %}
+      <script>
+        setTimeout(() => {
+          const notifications = document.querySelectorAll('.fixed.top-5.right-5');
+          notifications.forEach(notif => notif.style.display = 'none');
+        }, 4000);
+      </script>
+    {% endif %}
+  {% endwith %}
+
+  <script>
+  function togglePassword(inputId, toggleId) {
+      const passwordInput = document.getElementById(inputId);
+      const toggleIcon = document.getElementById(toggleId);
+      
+      if (passwordInput.type === 'password') {
+          passwordInput.type = 'text';
+          toggleIcon.classList.remove('fa-eye');
+          toggleIcon.classList.add('fa-eye-slash');
+      } else {
+          passwordInput.type = 'password';
+          toggleIcon.classList.remove('fa-eye-slash');
+          toggleIcon.classList.add('fa-eye');
+      }
+  }
+
+  // Password confirmation validation
+  document.getElementById('confirm_password').addEventListener('input', function() {
+      const password = document.getElementById('password').value;
+      const confirmPassword = this.value;
+      
+      if (confirmPassword && password !== confirmPassword) {
+          this.setCustomValidity('Passwords do not match');
+      } else {
+          this.setCustomValidity('');
+      }
+  });
+
+  // Username validation (letters, numbers, underscores only)
+  document.getElementById('username').addEventListener('input', function() {
+      const username = this.value;
+      const validUsername = /^[a-zA-Z0-9_]+$/.test(username);
+      
+      if (username && !validUsername) {
+          this.setCustomValidity('Username can only contain letters, numbers, and underscores');
+      } else {
+          this.setCustomValidity('');
+      }
+  });
+
+  // Add fade-in animation on page load
+  document.addEventListener('DOMContentLoaded', function() {
+      const card = document.querySelector('.fade-in');
+      if (card) {
+          card.style.animation = 'fadeIn 0.5s ease-in';
+      }
+  });
+  </script>
+
+</body>
+</html>

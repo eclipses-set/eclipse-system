@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Emergency Alert System</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/sos.png') }}">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    .gradient-bg {
+        background: 
+            linear-gradient(135deg, rgba(136, 58, 58, 0.7), rgba(109, 19, 19, 0.7)),
+            url("{{ url_for('static', filename='images/login-bg.png') }}");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+    }
+    .password-toggle-btn {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        right: 0;
+        padding-right: 12px;
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        z-index: 10;
+        background: none;
+        border: none;
+        outline: none;
+    }
+    .password-toggle-btn:focus {
+        outline: 2px solid #ef4444;
+        outline-offset: 2px;
+        border-radius: 4px;
+    }
+    .password-toggle-icon {
+        width: 20px;
+        height: 10px;
+        color: #9ca3af;
+        transition: color 0.2s ease-in-out;
+    }
+    .password-toggle-btn:hover .password-toggle-icon {
+        color: #4b5563;
+    }
+    .password-input-field {
+        padding-right: 44px !important; 
+    }
+    .fade-in {
+        animation: fadeIn 0.5s ease-in;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="gradient-bg min-h-screen flex items-center justify-center">
+
+  <div class="max-w-md w-full space-y-8 p-8">
+    <div class="bg-white rounded-xl shadow-2xl p-8 fade-in">
+      <div class="text-center">
+        <div class="flex justify-center mb-6">
+            <img src="{{ url_for('static', filename='images/eas.png') }}"
+                alt="EAS Logo"
+                class="h-20 w-20 md:h-28 md:w-28 lg:h-32 lg:w-32 flex-shrink-0"
+                data-fallback-src="{{ url_for('static', filename='images/eas.svg') }}">
+        </div>
+
+        <h2 class="mt-3 text-2xl font-extrabold text-gray-900">
+          Emergency Alert System
+        </h2>
+        <p class="mt-2 text-sm text-gray-600">
+          Administrator Login Portal
+        </p>
+      </div>
+
+      <form class="mt-8 space-y-6" method="POST" action="{{ url_for('login') }}">
+        <div class="space-y-4">
+          <div>
+            <label for="username" class="block text-sm font-medium text-gray-700">
+              <i class="fas fa-user mr-2"></i>Username
+            </label>
+            <input id="username" 
+                   name="username" 
+                   type="text" 
+                   required 
+                   class="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm"
+                   placeholder="Enter your username"
+                   autocomplete="username">
+          </div>
+
+          <div>
+            <label for="password" class="block text-sm font-medium text-gray-700">
+              <i class="fas fa-lock mr-2"></i>Password
+            </label>
+            <div class="relative">
+              <input id="password" 
+                     name="password" 
+                     type="password" 
+                     required 
+                     class="password-input-field appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm"
+                     placeholder="Enter your password"
+                     autocomplete="current-password">
+              <button type="button" 
+                      class="password-toggle-btn"
+                      onclick="togglePassword()"
+                      tabindex="-1">
+                <i id="password-toggle" class="password-toggle-icon fas fa-eye"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <button type="submit" 
+                  class="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-150 ease-in-out">
+            <span class="absolute left-0 inset-y-0 flex items-center pl-3">
+              <i class="fas fa-sign-in-alt text-red-400 group-hover:text-red-300"></i>
+            </span>
+            Sign In
+          </button>
+        </div>
+
+        <div class="text-right space-y-2">
+          <a href="{{ url_for('forgot_password') }}" 
+             class="block text-sm text-red-600 hover:text-red-500 font-medium transition duration-150 ease-in-out">
+            <i class="fas fa-key mr-1"></i>
+            Forgot your password?
+          </a>
+          <a href="{{ url_for('request_account') }}" 
+             class="block text-sm text-gray-600 hover:text-gray-800 font-medium transition duration-150 ease-in-out">
+            <i class="fas fa-user-plus mr-1"></i>
+            Request New Account
+          </a>
+        </div>
+      </form>
+    </div>
+
+    <div class="text-center">
+      <p class="text-sm text-white opacity-75">
+        © {{ current_year }} Emergency Alert System - Authorized Personnel Only
+      </p>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="fixed top-5 right-5 bg-white shadow-xl rounded-lg p-4 border-l-4 
+            {{ 'border-green-500' if 'success' in category else 'border-red-500' }} 
+            transition transform duration-300 ease-in-out z-50 max-w-sm">
+          <p class="text-sm font-medium 
+              {{ 'text-green-600' if 'success' in category else 'text-red-600' }}">
+            {{ message }}
+          </p>
+        </div>
+      {% endfor %}
+      <script>
+        setTimeout(() => {
+          const notifications = document.querySelectorAll('.fixed.top-5.right-5');
+          notifications.forEach(notif => notif.style.display = 'none');
+          {% if 'success' in messages[0][0] %}
+            setTimeout(() => {
+              window.location.href = "{{ url_for('dashboard') }}";
+            }, 1000);
+          {% endif %}
+        }, 3000);
+      </script>
+    {% endif %}
+  {% endwith %}
+
+  <script>
+  function togglePassword() {
+      const passwordInput = document.getElementById('password');
+      const toggleIcon = document.getElementById('password-toggle');
+      
+      if (passwordInput.type === 'password') {
+          passwordInput.type = 'text';
+          toggleIcon.classList.remove('fa-eye');
+          toggleIcon.classList.add('fa-eye-slash');
+      } else {
+          passwordInput.type = 'password';
+          toggleIcon.classList.remove('fa-eye-slash');
+          toggleIcon.classList.add('fa-eye');
+      }
+  }
+  
+  // Add fade-in animation on page load
+  document.addEventListener('DOMContentLoaded', function() {
+      const card = document.querySelector('.fade-in');
+      if (card) {
+          card.style.animation = 'fadeIn 0.5s ease-in';
+      }
+  });
+  
+  </script>
+
+</body>
+</html>

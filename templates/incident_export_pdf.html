@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incident Report - Legal Form</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            background: white;
+            color: #000000;
+            padding: 20px;
+            font-size: 11pt;
+            line-height: 1.4;
+        }
+        
+        @media print {
+            body {
+                padding: 0;
+            }
+            
+            .no-print {
+                display: none !important;
+            }
+            
+            @page {
+                size: A4 landscape;
+                margin: 1.5cm;
+            }
+            
+            .page-break {
+                page-break-after: always;
+            }
+            
+            table {
+                page-break-inside: auto;
+            }
+            
+            tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #000000;
+        }
+        
+        .header h1 {
+            font-size: 18pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+            color: #000000;
+        }
+        
+        .header .subtitle {
+            font-size: 12pt;
+            color: #333333;
+            font-weight: normal;
+        }
+        
+        .summary-section {
+            margin-bottom: 25px;
+            border: 2px solid #000000;
+            padding: 15px;
+            background: #f9f9f9;
+        }
+        
+        .summary-title {
+            font-size: 14pt;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            border-bottom: 1px solid #000000;
+            padding-bottom: 5px;
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        
+        .summary-box {
+            border: 1px solid #000000;
+            padding: 12px;
+            background: white;
+        }
+        
+        .summary-box-title {
+            font-size: 10pt;
+            font-weight: bold;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            border-bottom: 1px solid #cccccc;
+            padding-bottom: 3px;
+        }
+        
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px dotted #cccccc;
+        }
+        
+        .stat-label {
+            font-size: 10pt;
+            font-weight: normal;
+        }
+        
+        .stat-value {
+            font-size: 11pt;
+            font-weight: bold;
+        }
+        
+        .incident-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            border: 2px solid #000000;
+            font-size: 9pt;
+        }
+        
+        .incident-table thead {
+            background: #000000;
+            color: white;
+        }
+        
+        .incident-table th {
+            padding: 10px 8px;
+            text-align: left;
+            font-size: 9pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border: 1px solid #000000;
+            vertical-align: middle;
+            line-height: 1.4;
+        }
+        
+        .incident-table td {
+            padding: 8px;
+            border: 1px solid #000000;
+            font-size: 9.5pt;
+            vertical-align: top;
+            background: white;
+            line-height: 1.6;
+            text-align: left;
+        }
+        
+        .incident-table tbody tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        
+        .incident-id {
+            font-weight: bold;
+            color: #000000;
+            font-size: 9.5pt;
+            text-align: center;
+            vertical-align: middle;
+        }
+        
+        .reporter-info {
+            text-align: left;
+            font-size: 9pt;
+            line-height: 1.5;
+        }
+        
+        .reporter-name {
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: #000000;
+        }
+        
+        .reporter-details {
+            font-size: 8.5pt;
+            color: #333333;
+            margin-top: 2px;
+            display: block;
+        }
+        
+        .time-reported {
+            font-weight: 600;
+            white-space: nowrap;
+            font-size: 9pt;
+            text-align: center;
+            vertical-align: middle;
+        }
+        
+        .time-recent {
+            color: #006400;
+            font-weight: bold;
+        }
+        
+        .time-recent-24h {
+            color: #228B22;
+            font-weight: 600;
+        }
+        
+        .time-recent-7d {
+            color: #4169E1;
+            font-weight: 500;
+        }
+        
+        .time-older {
+            color: #666666;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 3px;
+            font-size: 8.5pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            border: 1px solid;
+            text-align: center;
+        }
+        
+        .status-cell {
+            text-align: center;
+            vertical-align: middle;
+        }
+        
+        .status-active {
+            background: #fee2e2;
+            color: #991b1b;
+            border-color: #991b1b;
+        }
+        
+        .status-pending {
+            background: #ffedd5;
+            color: #9a3412;
+            border-color: #9a3412;
+        }
+        
+        .status-resolved {
+            background: #dcfce7;
+            color: #166534;
+            border-color: #166534;
+        }
+        
+        .status-cancelled {
+            background: #e5e7eb;
+            color: #374151;
+            border-color: #374151;
+        }
+        
+        .category-type {
+            line-height: 1.6;
+            font-size: 9pt;
+            text-align: left;
+        }
+        
+        .category-type .category {
+            font-weight: bold;
+            color: #000000;
+            margin-bottom: 4px;
+            display: block;
+        }
+        
+        .category-type .type {
+            font-size: 8.5pt;
+            color: #333333;
+            font-style: italic;
+        }
+        
+        .category-type .type-item {
+            display: block;
+            margin-top: 3px;
+            line-height: 1.4;
+        }
+        
+        .timestamp-cell {
+            font-size: 8.5pt;
+            color: #333333;
+            white-space: nowrap;
+            text-align: center;
+            vertical-align: middle;
+        }
+        
+        .responder-cell {
+            font-size: 9pt;
+            font-weight: 500;
+            text-align: left;
+            vertical-align: middle;
+        }
+        
+        .coordinates {
+            font-family: 'Courier New', monospace;
+            font-size: 8.5pt;
+            color: #333333;
+            line-height: 1.5;
+            margin-bottom: 5px;
+        }
+        
+        .location-name {
+            font-weight: 500;
+            color: #000000;
+            line-height: 1.5;
+            font-size: 9pt;
+            text-align: left;
+        }
+        
+        .description-cell {
+            font-size: 9pt;
+            color: #000000;
+            line-height: 1.6;
+            text-align: left;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            padding: 10px;
+        }
+        
+        .footer {
+            margin-top: 25px;
+            padding-top: 15px;
+            border-top: 2px solid #000000;
+            text-align: center;
+            color: #333333;
+            font-size: 9pt;
+        }
+        
+        .print-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #000000;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 12pt;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            font-family: 'Times New Roman', serif;
+        }
+        
+        .print-button:hover {
+            background: #333333;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #666666;
+            font-size: 12pt;
+        }
+        
+        .export-info {
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #000000;
+            background: #f9f9f9;
+            font-size: 9pt;
+        }
+        
+        .export-info-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+        
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .info-label {
+            font-size: 8pt;
+            color: #333333;
+            text-transform: uppercase;
+            margin-bottom: 3px;
+        }
+        
+        .info-value {
+            font-size: 10pt;
+            color: #000000;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <button class="print-button no-print" onclick="window.print()">
+        Print / Save as PDF
+    </button>
+    
+    <div class="header">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 10px;">
+            <img src="{{ url_for('static', filename='images/ccis.png') }}" alt="CCIS Logo" style="height: 50px; width: auto;">
+            <img src="{{ url_for('static', filename='images/ohso.png') }}" alt="OHSO Logo" style="height: 50px; width: auto;">
+            <img src="{{ url_for('static', filename='images/eas.png') }}" alt="EAS Logo" style="height: 50px; width: auto;">
+        </div>
+        <h1>INCIDENT REPORT</h1>
+        <div class="subtitle">University of Makati - Emergency Alert System</div>
+    </div>
+    
+    <div class="export-info">
+        <div class="export-info-grid">
+            <div class="info-item">
+                <span class="info-label">Exported By</span>
+                <span class="info-value">{{ admin_name }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Export Date</span>
+                <span class="info-value">{{ export_date }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Total Incidents</span>
+                <span class="info-value">{{ total_count }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Time Zone</span>
+                <span class="info-value">Philippines (UTC+8)</span>
+            </div>
+        </div>
+    </div>
+    
+    {% if status_filter != 'All' or category_filter != 'All' or search_term or start_date or end_date %}
+    <div style="margin-bottom: 20px; padding: 12px; background: #fef2f2; border-left: 4px solid #dc2626; border-radius: 4px;">
+        <h3 style="font-size: 11pt; color: #991b1b; margin-bottom: 8px; font-weight: 600;">
+            <i class="fas fa-filter"></i> Applied Filters
+        </h3>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            {% if status_filter != 'All' %}
+            <span style="display: inline-block; padding: 3px 8px; background: white; border: 1px solid #fca5a5; border-radius: 10px; font-size: 9pt; color: #991b1b;">Status: {{ status_filter }}</span>
+            {% endif %}
+            {% if category_filter != 'All' %}
+            <span style="display: inline-block; padding: 3px 8px; background: white; border: 1px solid #fca5a5; border-radius: 10px; font-size: 9pt; color: #991b1b;">Category: {{ category_filter }}</span>
+            {% endif %}
+            {% if search_term %}
+            <span style="display: inline-block; padding: 3px 8px; background: white; border: 1px solid #fca5a5; border-radius: 10px; font-size: 9pt; color: #991b1b;">Search: {{ search_term }}</span>
+            {% endif %}
+            {% if start_date and end_date %}
+            <span style="display: inline-block; padding: 3px 8px; background: white; border: 1px solid #fca5a5; border-radius: 10px; font-size: 9pt; color: #991b1b;">Date Range: {{ start_date }} to {{ end_date }}</span>
+            {% elif start_date %}
+            <span style="display: inline-block; padding: 3px 8px; background: white; border: 1px solid #fca5a5; border-radius: 10px; font-size: 9pt; color: #991b1b;">From: {{ start_date }}</span>
+            {% elif end_date %}
+            <span style="display: inline-block; padding: 3px 8px; background: white; border: 1px solid #fca5a5; border-radius: 10px; font-size: 9pt; color: #991b1b;">To: {{ end_date }}</span>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="summary-section">
+        <div class="summary-title">Summary / Analytics</div>
+        <div class="summary-grid">
+            <div class="summary-box">
+                <div class="summary-box-title">Status Distribution</div>
+                <div class="summary-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Total Incidents:</span>
+                        <span class="stat-value">{{ total_count }}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Active:</span>
+                        <span class="stat-value">{{ status_counts.Active }}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Pending:</span>
+                        <span class="stat-value">{{ status_counts.Pending }}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Resolved:</span>
+                        <span class="stat-value">{{ status_counts.Resolved }}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Cancelled:</span>
+                        <span class="stat-value">{{ status_counts.Cancelled }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="summary-box">
+                <div class="summary-box-title">Location Distribution</div>
+                <div class="summary-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">UMAK (On-Campus):</span>
+                        <span class="stat-value">{{ location_counts.UMAK }}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">External:</span>
+                        <span class="stat-value">{{ location_counts.External }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% if incidents %}
+    <table class="incident-table">
+        <thead>
+            <tr>
+                <th style="width: 6%;">Incident ID</th>
+                <th style="width: 10%;">Reported By / College / Year Level</th>
+                <th style="width: 8%;">Time Reported</th>
+                <th style="width: 7%;">Status</th>
+                <th style="width: 9%;">Assigned Responder</th>
+                <th style="width: 7%;">Pending TS</th>
+                <th style="width: 7%;">Cancelled TS</th>
+                <th style="width: 7%;">Resolved TS</th>
+                <th style="width: 12%;">Report Summary (Resolved)</th>
+                <th style="width: 9%;">Category & Type Details</th>
+                <th style="width: 9%;">Location / Coordinates</th>
+                <th style="width: 16%;">Incident Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for incident in incidents %}
+            <tr>
+                <td class="incident-id">{{ incident.icd_id }}</td>
+                <td class="reporter-info">
+                    <div class="reporter-name">{{ incident.reported_by or 'N/A' }}</div>
+                    {% if incident.student_college and incident.student_college != 'N/A' %}
+                        <span class="reporter-details">College: {{ incident.student_college }}</span>
+                    {% endif %}
+                    {% if incident.student_number and incident.student_number != 'N/A' %}
+                        {% set student_id_str = incident.student_number|string %}
+                        {% if student_id_str|length >= 2 %}
+                            {% set year_digit = student_id_str[1:2] %}
+                            {% if year_digit == '1' %}
+                                <span class="reporter-details">Year Level: 1st Year</span>
+                            {% elif year_digit == '2' %}
+                                <span class="reporter-details">Year Level: 2nd Year</span>
+                            {% elif year_digit == '3' %}
+                                <span class="reporter-details">Year Level: 3rd Year</span>
+                            {% elif year_digit == '4' %}
+                                <span class="reporter-details">Year Level: 4th Year</span>
+                            {% elif year_digit == '5' %}
+                                <span class="reporter-details">Year Level: 5th Year</span>
+                            {% endif %}
+                        {% endif %}
+                    {% endif %}
+                </td>
+                <td class="time-reported">
+                    {% if incident.icd_timestamp %}
+                        {% set timestamp = incident.icd_timestamp|format_datetime %}
+                        {% set recency = incident.time_recency or 'older' %}
+                        <span class="time-{{ recency }}">{{ timestamp }}</span>
+                    {% else %}
+                        <span class="time-older">N/A</span>
+                    {% endif %}
+                </td>
+                <td class="status-cell">
+                    {% set status = incident.icd_status or 'Unknown' %}
+                    <span class="status-badge status-{{ status.lower() }}">
+                        {{ status }}
+                    </span>
+                </td>
+                <td class="responder-cell">
+                    {{ incident.assigned_responder_name or 'N/A' }}
+                </td>
+                <td class="timestamp-cell">
+                    {% if incident.pending_timestamp %}
+                        {{ incident.pending_timestamp|format_datetime }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+                <td class="timestamp-cell">
+                    {% if incident.cancelled_timestamp %}
+                        {{ incident.cancelled_timestamp|format_datetime }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+                <td class="timestamp-cell">
+                    {% if incident.resolved_timestamp %}
+                        {{ incident.resolved_timestamp|format_datetime }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+                <td class="description-cell" style="font-size: 8.5pt; padding: 8px;">
+                    {% if incident.resolution_report and incident.icd_status == 'Resolved' %}
+                        <div style="margin-bottom: 6px;">
+                            <strong>Resolution ID:</strong><br>
+                            <span style="font-size: 8pt;">{{ incident.resolution_report.resolved_id or 'N/A' }}</span>
+                        </div>
+                        <div style="margin-bottom: 6px;">
+                            <strong>Resolved By:</strong><br>
+                            <span style="font-size: 8pt;">{{ incident.resolution_report.resolved_by_name or incident.resolution_report.resolved_by or 'N/A' }}</span>
+                        </div>
+                        {% if incident.resolution_report.response_minutes %}
+                        <div style="margin-bottom: 6px;">
+                            <strong>Response Time:</strong><br>
+                            <span style="font-size: 8pt;">
+                                {% set hours = (incident.resolution_report.response_minutes / 60)|int %}
+                                {% set minutes = (incident.resolution_report.response_minutes % 60)|int %}
+                                {% if hours > 0 %}
+                                    {{ hours }}h{% if minutes > 0 %} {{ minutes }}m{% endif %}
+                                {% else %}
+                                    {{ minutes }}m
+                                {% endif %}
+                            </span>
+                        </div>
+                        {% endif %}
+                        {% if incident.resolution_report.summary_headline %}
+                        <div style="margin-bottom: 6px;">
+                            <strong>Headline:</strong><br>
+                            <span style="font-size: 8pt;">{{ incident.resolution_report.summary_headline }}</span>
+                        </div>
+                        {% endif %}
+                        {% if incident.resolution_report.summary_notes %}
+                        <div style="margin-top: 4px; font-size: 7.5pt; color: #333; max-height: 80px; overflow: hidden;">
+                            {{ incident.resolution_report.summary_notes[:200] }}{% if incident.resolution_report.summary_notes|length > 200 %}...{% endif %}
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <span style="font-style: italic; color: #666;">—</span>
+                    {% endif %}
+                </td>
+                <td class="category-type">
+                    <div class="category">{{ incident.icd_category or 'N/A' }}</div>
+                    {% if incident.icd_medical_type %}
+                        <div class="type-item"><span class="type">Medical:</span> {{ incident.icd_medical_type }}</div>
+                    {% endif %}
+                    {% if incident.icd_security_type %}
+                        <div class="type-item"><span class="type">Security:</span> {{ incident.icd_security_type }}</div>
+                    {% endif %}
+                    {% if incident.icd_university_type %}
+                        <div class="type-item"><span class="type">University:</span> {{ incident.icd_university_type }}</div>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="coordinates">
+                        {% if incident.icd_lat and incident.icd_lng %}
+                            Lat: {{ "%.6f"|format(incident.icd_lat) }}<br>
+                            Lng: {{ "%.6f"|format(incident.icd_lng) }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </div>
+                    <div class="location-name">
+                        {{ incident.computed_location_name or 'N/A' }}
+                    </div>
+                </td>
+                <td class="description-cell">
+                    {% if incident.icd_description %}
+                        {{ incident.icd_description }}
+                    {% else %}
+                        <em>No description provided.</em>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="no-data">
+        <p>No incidents found matching the selected criteria.</p>
+    </div>
+    {% endif %}
+    
+    <div class="footer">
+        <p>This report was generated on {{ export_date }} by {{ admin_name }}</p>
+        <p>University of Makati - Emergency Alert System | Legal Form Document</p>
+    </div>
+</body>
+</html>

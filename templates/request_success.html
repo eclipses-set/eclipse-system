@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Request Submitted - Emergency Alert System</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/sos.png') }}">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    .gradient-bg {
+        background: 
+            linear-gradient(135deg, rgba(16, 185, 129, 0.7), rgba(5, 150, 105, 0.7)),
+            url("{{ url_for('static', filename='images/login-bg.png') }}");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+    }
+    .success-animation {
+        animation: successPulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes successPulse {
+        0%, 100% { 
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+        }
+        50% { 
+            transform: scale(1.05);
+            box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+        }
+    }
+    
+    .fade-in {
+        animation: fadeIn 0.8s ease-in;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="gradient-bg min-h-screen flex items-center justify-center">
+
+  <div class="max-w-md w-full space-y-8 p-8">
+    <div class="bg-white rounded-xl shadow-2xl p-8 fade-in text-center">
+      <!-- Success Icon -->
+      <div class="mx-auto h-24 w-24 flex items-center justify-center rounded-full bg-green-100 mb-6 success-animation">
+        <i class="fas fa-check-circle text-5xl text-green-600"></i>
+      </div>
+      
+      <!-- Title -->
+      <h2 class="mt-4 text-3xl font-extrabold text-gray-900">
+        Request Submitted Successfully!
+      </h2>
+      
+      <!-- Message -->
+      <div class="mt-6 space-y-4">
+        <p class="text-lg text-gray-700">
+          Thank you, <strong>{{ name }}</strong>!
+        </p>
+        
+        <div class="bg-green-50 border-l-4 border-green-400 rounded-lg p-4">
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <i class="fas fa-info-circle text-green-400"></i>
+            </div>
+            <div class="ml-3">
+              <h3 class="text-sm font-medium text-green-800">
+                What happens next?
+              </h3>
+              <div class="mt-2 text-sm text-green-700">
+                <ul class="list-disc list-inside space-y-1">
+                  <li>Your request will be reviewed by system administrators</li>
+                  <li>Review process typically takes 24-48 hours</li>
+                  <li>You will receive an email notification with the decision</li>
+                  <li>If approved, you can login with your chosen credentials</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="bg-blue-50 border-l-4 border-blue-400 rounded-lg p-4">
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <i class="fas fa-clock text-blue-400"></i>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm text-blue-700">
+                <strong>Important:</strong> Please check your email regularly for updates on your request status.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Actions -->
+      <div class="mt-8 space-y-4">
+        <a href="{{ url_for('login') }}" 
+           class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-150 ease-in-out">
+          <i class="fas fa-sign-in-alt mr-2"></i>
+          Return to Login
+        </a>
+        
+        <button onclick="window.print()" 
+                class="w-full flex justify-center py-3 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-150 ease-in-out">
+          <i class="fas fa-print mr-2"></i>
+          Print Confirmation
+        </button>
+      </div>
+      
+      <!-- Help Text -->
+      <div class="mt-6 text-xs text-gray-500">
+        <p>
+          <i class="fas fa-question-circle mr-1"></i>
+          Need help? Contact system administrator for assistance.
+        </p>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="text-center">
+      <p class="text-sm text-white opacity-75">
+        © {{ current_year }} Emergency Alert System - Authorized Personnel Only
+      </p>
+    </div>
+  </div>
+
+  <!-- Auto-redirect message (hidden) -->
+  <div id="auto-redirect" class="fixed bottom-5 left-5 bg-white shadow-xl rounded-lg p-3 border-l-4 border-green-500 hidden">
+    <p class="text-sm text-green-600">
+      <i class="fas fa-info-circle mr-1"></i>
+      Redirecting to login page in 10 seconds...
+    </p>
+  </div>
+
+  <script>
+  // Add fade-in animation on page load
+  document.addEventListener('DOMContentLoaded', function() {
+      const card = document.querySelector('.fade-in');
+      if (card) {
+          card.style.animation = 'fadeIn 0.8s ease-in';
+      }
+      
+      // Auto-redirect after 30 seconds
+      setTimeout(function() {
+          const redirectDiv = document.getElementById('auto-redirect');
+          if (redirectDiv) {
+              redirectDiv.classList.remove('hidden');
+          }
+      }, 10000); // Show message after 10 seconds
+      
+      setTimeout(function() {
+          window.location.href = "{{ url_for('login') }}";
+      }, 40000); // Redirect after 40 seconds
+  });
+  
+  // Print functionality
+  function printPage() {
+      window.print();
+  }
+  </script>
+
+</body>
+</html>

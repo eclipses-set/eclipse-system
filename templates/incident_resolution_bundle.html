@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incident Resolution Bundle Report</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Georgia', 'Times New Roman', serif;
+            background: white;
+            color: #000000;
+            padding: 20px;
+            font-size: 11pt;
+            line-height: 1.4;
+        }
+        
+        @media print {
+            @page {
+                size: A4;
+                margin: 0.5in;
+            }
+            body {
+                margin: 0;
+                padding: 0;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .page-break {
+                page-break-after: always;
+            }
+        }
+        
+        .form-field {
+            border-bottom: 1px solid #000;
+            min-height: 24px;
+            padding: 2px 0;
+            color: #000;
+        }
+        
+        .section-header {
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+        }
+        
+        .header-logos {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+            margin-bottom: 20px;
+        }
+        
+        .header-logo {
+            width: 80px;
+            height: 80px;
+            object-fit: contain;
+        }
+        
+        .header-title {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .header-title h1 {
+            font-size: 28pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: #000;
+            margin-bottom: 8px;
+        }
+        
+        .header-title .subtitle {
+            font-size: 12pt;
+            color: #333;
+        }
+        
+        .header-divider {
+            border-top: 3px double #000;
+            border-bottom: 3px double #000;
+            padding: 12px 0;
+            margin: 0 auto;
+            max-width: 600px;
+        }
+        
+        .content-wrapper {
+            max-width: 8.5in;
+            margin: 0 auto;
+        }
+        
+        .section {
+            margin-bottom: 24px;
+        }
+        
+        .section h2 {
+            font-size: 16pt;
+            font-weight: bold;
+            margin-bottom: 12px;
+            padding-bottom: 6px;
+            border-bottom: 2px solid #000;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #000;
+        }
+        
+        .section h3 {
+            font-size: 12pt;
+            font-weight: bold;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #000;
+        }
+        
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        
+        .field-group {
+            margin-bottom: 12px;
+        }
+        
+        .field-label {
+            display: block;
+            font-size: 10pt;
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: #000;
+        }
+        
+        .description-box {
+            border: 2px solid #000;
+            padding: 16px;
+            min-height: 150px;
+            background-color: #fff;
+            color: #000;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .resolution-item {
+            border: 2px solid #000;
+            padding: 20px;
+            margin-bottom: 30px;
+            background-color: #fff;
+            page-break-inside: avoid;
+        }
+        
+        .resolution-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .resolution-header {
+            border-bottom: 2px solid #000;
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .resolution-header h3 {
+            font-size: 14pt;
+            margin-bottom: 8px;
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        
+        .summary-list {
+            margin-left: 20px;
+            line-height: 2;
+            color: #000;
+        }
+        
+        .summary-list li {
+            margin-bottom: 8px;
+        }
+        
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 3px double #000;
+        }
+        
+        .footer-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+        
+        .footer-note {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 9pt;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .summary-stats {
+            background: #f9f9f9;
+            border: 2px solid #000;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .summary-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-top: 12px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 18pt;
+            font-weight: bold;
+            color: #000;
+            display: block;
+        }
+        
+        .stat-label {
+            font-size: 9pt;
+            color: #666;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="content-wrapper">
+        <!-- Print Button -->
+        <div class="no-print mb-6" style="text-align: right;">
+            <button onclick="window.print()" style="padding: 12px 32px; font-weight: bold; background-color: #000; color: white; border: 2px solid #000; letter-spacing: 1px; text-transform: uppercase; cursor: pointer;">
+                🖨️ Print Form
+            </button>
+        </div>
+
+        <!-- Header with Logos -->
+        <div class="header-logos">
+            <img src="{{ url_for('static', filename='images/ccis.png') }}" alt="CCIS" class="header-logo">
+            <img src="{{ url_for('static', filename='images/ohso.png') }}" alt="OHSO" class="header-logo">
+            <img src="{{ url_for('static', filename='images/eas.png') }}" alt="EAS" class="header-logo">
+        </div>
+
+        <div class="header-title">
+            <div class="header-divider">
+                <h1>INCIDENT RESOLUTION BUNDLE REPORT</h1>
+            </div>
+            <div class="subtitle">University of Makati - Emergency Alert System</div>
+        </div>
+
+        <!-- Summary Statistics -->
+        {% if resolution_reports %}
+        <div class="summary-stats">
+            <h3 style="margin-bottom: 12px; border-bottom: 1px solid #000; padding-bottom: 6px;">Summary Statistics</h3>
+            <div class="summary-stats-grid">
+                <div class="stat-item">
+                    <span class="stat-value">{{ resolution_reports|length }}</span>
+                    <span class="stat-label">Total Resolutions</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value">
+                        {% set total_minutes = 0 %}
+                        {% set count_with_time = 0 %}
+                        {% for report in resolution_reports %}
+                            {% if report.response_minutes %}
+                                {% set total_minutes = total_minutes + (report.response_minutes|float) %}
+                                {% set count_with_time = count_with_time + 1 %}
+                            {% endif %}
+                        {% endfor %}
+                        {% if count_with_time > 0 %}
+                            {% set avg_minutes = (total_minutes / count_with_time)|round(1) %}
+                            {% if avg_minutes >= 60 %}
+                                {{ (avg_minutes / 60)|round(1) }}h
+                            {% else %}
+                                {{ avg_minutes|int }}m
+                            {% endif %}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </span>
+                    <span class="stat-label">Avg Response Time</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value">
+                        {% if start_date %}{{ start_date }}{% else %}N/A{% endif %}
+                    </span>
+                    <span class="stat-label">Start Date</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value">
+                        {% if end_date %}{{ end_date }}{% else %}N/A{% endif %}
+                    </span>
+                    <span class="stat-label">End Date</span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Resolution Reports -->
+        {% if resolution_reports %}
+            {% for report in resolution_reports %}
+            <div class="resolution-item">
+                <div class="resolution-header">
+                    <h3>Resolution Report #{{ loop.index }}</h3>
+                </div>
+
+                <!-- I. Resolution Metadata Section -->
+                <div class="section">
+                    <h3>I. Resolution Metadata</h3>
+                    <div class="grid-2">
+                        <div class="field-group">
+                            <label class="field-label">Resolution ID:</label>
+                            <div class="form-field">{{ report.resolved_id or 'N/A' }}</div>
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">Incident ID:</label>
+                            <div class="form-field">{{ report.icd_id or 'N/A' }}</div>
+                        </div>
+                        <div class="field-group" style="grid-column: 1 / -1;">
+                            <label class="field-label">Incident Label:</label>
+                            <div class="form-field">{{ report.incident_label or 'N/A' }}</div>
+                        </div>
+                        <div class="field-group" style="grid-column: 1 / -1;">
+                            <label class="field-label">Category:</label>
+                            <div class="form-field">
+                                {% if report.category %}
+                                    {{ report.category }}{% if report.incident_type and report.incident_type != 'N/A' %} - {{ report.incident_type }}{% endif %}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="field-group" style="grid-column: 1 / -1;">
+                            <label class="field-label">Location:</label>
+                            <div style="margin-top: 8px;">
+                                {% if report.location_name and report.location_name != 'N/A' %}
+                                <div class="form-field" style="margin-bottom: 8px; font-weight: 500;">{{ report.location_name }}</div>
+                                {% endif %}
+                                <div style="display: flex; gap: 16px; font-size: 10pt; color: #666;">
+                                    {% if report.icd_lat %}
+                                    <div>
+                                        <span style="font-weight: 600;">Lat:</span>
+                                        <span>{{ "%.6f"|format(report.icd_lat|float) }}</span>
+                                    </div>
+                                    {% endif %}
+                                    {% if report.icd_lng %}
+                                    <div>
+                                        <span style="font-weight: 600;">Lng:</span>
+                                        <span>{{ "%.6f"|format(report.icd_lng|float) }}</span>
+                                    </div>
+                                    {% endif %}
+                                    {% if not report.icd_lat and not report.icd_lng %}
+                                    <div style="color: #999;">N/A</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">Reported At:</label>
+                            <div class="form-field">
+                                {% if report.reported_at %}
+                                    {{ report.reported_at|format_datetime }}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">Resolved At:</label>
+                            <div class="form-field">
+                                {% if report.resolved_at %}
+                                    {{ report.resolved_at|format_datetime }}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="field-group" style="grid-column: 1 / -1;">
+                            <label class="field-label">Response Time (minutes):</label>
+                            <div class="form-field">
+                                {% if report.response_minutes %}
+                                    {% set hours = (report.response_minutes / 60)|int %}
+                                    {% set minutes = (report.response_minutes % 60)|int %}
+                                    {% if hours > 0 %}
+                                        {{ hours }} hour{{ 's' if hours != 1 else '' }}{% if minutes > 0 %}, {{ minutes }} minute{{ 's' if minutes != 1 else '' }}{% endif %}
+                                    {% else %}
+                                        {{ minutes }} minute{{ 's' if minutes != 1 else '' }}
+                                    {% endif %}
+                                    ({{ report.response_minutes|round(1) }} minutes)
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- II. Student Information Section -->
+                <div class="section">
+                    <h3>II. Student Information</h3>
+                    <div class="grid-2">
+                        <div class="field-group">
+                            <label class="field-label">Student ID:</label>
+                            <div class="form-field">{{ report.student_id or 'N/A' }}</div>
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">Student Name:</label>
+                            <div class="form-field">{{ report.student_name or 'N/A' }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- III. Responder Information Section -->
+                <div class="section">
+                    <h3>III. Responder Information</h3>
+                    <div class="grid-2">
+                        <div class="field-group">
+                            <label class="field-label">Resolved By (User ID):</label>
+                            <div class="form-field">{{ report.resolved_by or 'N/A' }}</div>
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">Resolved By Name:</label>
+                            <div class="form-field">{{ report.resolved_by_name or 'N/A' }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- IV. Summary Notes Section -->
+                <div class="section">
+                    <h3>IV. Summary Notes</h3>
+                    <div class="description-box" style="min-height: 150px;">
+                        {% if report.summary_notes %}
+                        <div style="color: #000; white-space: pre-wrap;">{{ report.summary_notes }}</div>
+                        {% else %}
+                        <div style="color: #666; font-size: 0.875rem; font-style: italic;">
+                            [Long-form explanation and additional notes regarding the resolution]
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% if not loop.last %}
+            <div class="page-break"></div>
+            {% endif %}
+            {% endfor %}
+        {% else %}
+        <div class="section">
+            <div class="description-box" style="text-align: center; padding: 40px;">
+                <p style="color: #666; font-size: 12pt;">No resolution reports found for the selected criteria.</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-grid">
+                <div>
+                    <span class="field-label">Prepared by:</span>
+                    <div class="form-field" style="margin-top: 8px;">{{ admin_name or 'N/A' }}</div>
+                </div>
+                <div>
+                    <span class="field-label">Date Generated:</span>
+                    <div class="form-field" style="margin-top: 8px;">{{ export_date or 'N/A' }}</div>
+                </div>
+                <div>
+                    <span class="field-label">Total Reports:</span>
+                    <div class="form-field" style="margin-top: 8px;">{{ resolution_reports|length if resolution_reports else 0 }}</div>
+                </div>
+            </div>
+            <div class="footer-note">
+                <em>This document contains confidential information. Handle in accordance with institutional policies.</em>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

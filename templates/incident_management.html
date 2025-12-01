@@ -1,0 +1,3638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incident Management - Emergency Alert System</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/sos.png') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: linear-gradient(135deg, #fef2f2, #ffffff);
+            min-height: 100vh;
+        }
+
+        .max-w-7xl,
+        .max-w-8xl {
+            max-width: 100% !important;
+        }
+        /* Make sure table columns have enough space */
+        table th, table td {
+            padding-left: 1.5rem;
+            padding-right: 1.5rem;
+        }
+
+        /* Wider action buttons area */
+        td:last-child {
+            min-width: 200px;
+        }
+        
+        .status-active { 
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+        }
+        
+        .status-pending { 
+            background: linear-gradient(135deg, #f97316, #ea580c);
+            box-shadow: 0 0 15px rgba(249, 115, 22, 0.3);
+        }
+        
+        .status-resolved { 
+            background: linear-gradient(135deg, #10b981, #059669);
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+        }
+        
+        .status-cancelled { 
+            background: linear-gradient(135deg, #6b7280, #4b5563);
+            box-shadow: 0 0 15px rgba(107, 114, 128, 0.3);
+        }
+        
+        .profile-dropdown {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 0.5rem;
+            width: 200px;
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            z-index: 50;
+        }
+        
+        .profile-dropdown a {
+            display: block;
+            padding: 0.75rem 1rem;
+            color: #4b5563;
+            text-decoration: none;
+        }
+        
+        .profile-dropdown a:hover {
+            background-color: #f3f4f6;
+        }
+        
+        .divider {
+            height: 1px;
+            background-color: #e5e7eb;
+            margin: 0.25rem 0;
+        }
+        
+        .auto-refresh-indicator {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            background: #10b981;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            z-index: 1000;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: all 0.3s ease;
+        }
+        
+        @media (max-width: 768px) {
+            .auto-refresh-indicator {
+                top: 80px;
+                right: 10px;
+                font-size: 11px;
+                padding: 6px 10px;
+            }
+        }
+        
+        .auto-refresh-indicator.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .loading-screen {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%);
+            background-size: 200% 200%;
+            animation: gradientShift 3s ease infinite;
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .loading-screen.show {
+            display: flex;
+            opacity: 1;
+        }
+        
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .loading-content {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .loading-spinner-container {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            margin-bottom: 30px;
+        }
+        
+        .loading-spinner-outer {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            border: 4px solid rgba(239, 68, 68, 0.2);
+            border-top: 4px solid #ef4444;
+            border-right: 4px solid #ef4444;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        .loading-spinner-middle {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            width: 90px;
+            height: 90px;
+            border: 3px solid rgba(239, 68, 68, 0.3);
+            border-top: 3px solid #f87171;
+            border-radius: 50%;
+            animation: spinReverse 1.5s linear infinite;
+        }
+        
+        .loading-spinner-inner {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            width: 60px;
+            height: 60px;
+            border: 2px solid rgba(239, 68, 68, 0.4);
+            border-top: 2px solid #fca5a5;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        .loading-icon {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 32px;
+            color: #ef4444;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes spinReverse {
+            0% { transform: rotate(360deg); }
+            100% { transform: rotate(0deg); }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { 
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+            }
+            50% { 
+                transform: translate(-50%, -50%) scale(1.2);
+                opacity: 0.8;
+            }
+        }
+        
+        .loading-text {
+            color: white;
+            font-size: 22px;
+            font-weight: 700;
+            margin-top: 20px;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            animation: textGlow 2s ease-in-out infinite;
+        }
+        
+        .loading-dots {
+            display: inline-block;
+            margin-left: 5px;
+        }
+        
+        .loading-dots span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ef4444;
+            margin: 0 3px;
+            animation: dotBounce 1.4s ease-in-out infinite;
+        }
+        
+        .loading-dots span:nth-child(1) {
+            animation-delay: 0s;
+        }
+        
+        .loading-dots span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        
+        .loading-dots span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        
+        @keyframes textGlow {
+            0%, 100% {
+                text-shadow: 0 0 10px rgba(239, 68, 68, 0.5),
+                             0 0 20px rgba(239, 68, 68, 0.3),
+                             0 0 30px rgba(239, 68, 68, 0.2);
+            }
+            50% {
+                text-shadow: 0 0 20px rgba(239, 68, 68, 0.8),
+                             0 0 30px rgba(239, 68, 68, 0.5),
+                             0 0 40px rgba(239, 68, 68, 0.3);
+            }
+        }
+        
+        @keyframes dotBounce {
+            0%, 80%, 100% {
+                transform: translateY(0);
+                opacity: 0.7;
+            }
+            40% {
+                transform: translateY(-15px);
+                opacity: 1;
+            }
+        }
+        
+        .loading-subtext {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            margin-top: 10px;
+            text-align: center;
+            font-weight: 400;
+            letter-spacing: 1px;
+        }
+        
+        .bulk-action-toolbar {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .bulk-action-toolbar.show {
+            display: block;
+        }
+        
+        .checkbox-column {
+            width: 40px;
+        }
+        
+        .search-clear {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #9ca3af;
+        }
+        
+        .search-clear:hover {
+            color: #6b7280;
+        }
+        
+        /* Professional Filter Section Styles */
+        #filterForm select,
+        #filterForm input[type="text"],
+        #filterForm input[type="date"] {
+            transition: all 0.2s ease;
+        }
+        
+        #filterForm select:focus,
+        #filterForm input[type="text"]:focus,
+        #filterForm input[type="date"]:focus {
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+        }
+        
+        #filterForm select:hover,
+        #filterForm input[type="text"]:hover,
+        #filterForm input[type="date"]:hover {
+            border-color: #d1d5db;
+        }
+        
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .info-section {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.75rem;
+            padding: 1rem 1.25rem;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+        }
+        .info-section h4 {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 0.75rem;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            font-size: 0.9rem;
+            padding: 0.2rem 0;
+        }
+        .detail-label {
+            color: #6b7280;
+            font-weight: 500;
+            flex: 0 0 45%;
+        }
+        .detail-value {
+            color: #111827;
+            font-weight: 600;
+            text-align: right;
+            flex: 1;
+        }
+        .detail-value.full-width {
+            text-align: left;
+        }
+        .swal-section {
+            text-align: left;
+            margin: 0 auto;
+        }
+        .swal-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1rem;
+        }
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 0.75rem;
+        }
+        .metric-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 0.75rem;
+            padding: 0.75rem 1rem;
+            background: #f9fafb;
+        }
+        .metric-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #6b7280;
+        }
+        .metric-value {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #111827;
+            margin-top: 0.25rem;
+        }
+        .status-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.35rem 0.85rem;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .status-chip.active { background: #fee2e2; color: #991b1b; }
+        .status-chip.pending { background: #ffedd5; color: #9a3412; }
+        .status-chip.resolved { background: #dcfce7; color: #166534; }
+        .status-chip.cancelled { background: #e5e7eb; color: #374151; }
+        .audit-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 0.75rem;
+            padding: 0.75rem 1rem;
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        }
+        .audit-card strong {
+            color: #111827;
+            font-size: 0.9rem;
+        }
+        .audit-meta {
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+        .timeline {
+            position: relative;
+            padding-left: 2.5rem;
+        }
+        .timeline::before {
+            content: "";
+            position: absolute;
+            top: 0.5rem;
+            bottom: 0.5rem;
+            left: 0.85rem;
+            width: 2px;
+            background: #e5e7eb;
+        }
+        .timeline-item {
+            position: relative;
+            padding: 0.5rem 0 0.5rem 0;
+            min-height: 2.5rem;
+        }
+        .timeline-item .timeline-dot {
+            position: absolute;
+            left: -1.65rem;
+            top: 0.6rem;
+            width: 0.75rem;
+            height: 0.75rem;
+            border-radius: 9999px;
+            background: #d1d5db;
+            border: 2px solid #f9fafb;
+            z-index: 1;
+        }
+        .timeline-item .timeline-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+        .timeline-label {
+            font-weight: 600;
+            color: #4b5563;
+        }
+        .timeline-timestamp {
+            font-size: 0.8rem;
+            color: #9ca3af;
+        }
+        .timeline-item.active .timeline-dot {
+            background: #10b981;
+            box-shadow: 0 0 0 3px #d1fae5;
+        }
+        .timeline-item.active .timeline-label {
+            color: #0f172a;
+        }
+        @media (max-width: 640px) {
+            .timeline {
+                padding-left: 2rem;
+            }
+            .timeline::before {
+                left: 0.5rem;
+            }
+            .timeline-item .timeline-dot {
+                left: -1.4rem;
+            }
+            .timeline-item .timeline-content {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .detail-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .detail-value {
+                text-align: left;
+            }
+        }
+        
+        .audit-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .audit-modal-content {
+            background-color: white;
+            margin: 0;
+            padding: 0;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow: hidden;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #auditTimeline {
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+        }
+        
+        /* Alerts Button Tooltip */
+        .alerts-tooltip {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 10px;
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5), 0 0 20px rgba(239, 68, 68, 0.3);
+            z-index: 1000;
+            min-width: 200px;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            animation: tooltipFadeIn 0.3s ease;
+        }
+        
+        .alerts-tooltip.show {
+            display: block;
+        }
+        
+        .alerts-tooltip::after {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            right: 20px;
+            border: 8px solid transparent;
+            border-bottom-color: #1f2937;
+        }
+        
+        @keyframes tooltipFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(5px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .tooltip-header {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #ef4444;
+            margin-bottom: 10px;
+            border-bottom: 1px solid rgba(239, 68, 68, 0.3);
+            padding-bottom: 8px;
+        }
+        
+        .tooltip-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            font-size: 13px;
+        }
+        
+        .tooltip-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .tooltip-value {
+            font-weight: 700;
+            font-size: 14px;
+        }
+        
+        .tooltip-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 24px;
+            height: 24px;
+            padding: 0 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        
+        .tooltip-badge.active {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .tooltip-badge.pending {
+            background: #f97316;
+            color: white;
+        }
+        
+        .tooltip-badge.archived {
+            background: #f97316;
+            color: white;
+        }
+        
+        /* Student Info Popup Styles - Emergency Alert System Theme */
+        .student-info-popup {
+            border-radius: 0 !important;
+            overflow: hidden !important;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4) !important;
+            border: none !important;
+            max-width: 1400px !important;
+            width: 95% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        
+        .student-info-popup .swal2-html-container {
+            margin: 0 !important;
+            padding: 0 !important;
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+            max-height: 80vh !important;
+            overflow-y: auto !important;
+        }
+        
+        .student-info-popup .swal2-header {
+            padding: 0 !important;
+            margin: 0 !important;
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+        }
+        
+        .student-info-popup .swal2-title {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        
+        .student-info-popup .swal2-actions {
+            margin: 0 !important;
+            padding: 1.5rem 2.5rem !important;
+            margin-top: 0 !important;
+        }
+        
+        .student-info-popup .swal2-close {
+            display: none !important;
+        }
+        
+        .student-info-popup > * {
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+        }
+        
+        .student-info-popup .swal2-html-container > div {
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+        }
+        
+        .student-info-popup .swal2-html-container > div > div:first-child {
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+        }
+        
+        .student-info-popup .swal2-html-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .student-info-popup .swal2-html-container::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        
+        .student-info-popup .swal2-html-container::-webkit-scrollbar-thumb {
+            background: #dc2626;
+            border-radius: 4px;
+        }
+        
+        .swal2-confirm-student {
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%) !important;
+            border: none !important;
+            padding: 0.875rem 2.5rem !important;
+            font-weight: 700 !important;
+            font-size: 0.95rem !important;
+            border-radius: 8px !important;
+            transition: all 0.3s ease !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.5px !important;
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3) !important;
+        }
+        
+        .swal2-confirm-student:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 6px 20px rgba(220, 38, 38, 0.4) !important;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+        }
+        
+        .swal2-close {
+            color: #ffffff !important;
+            font-size: 1.75rem !important;
+            font-weight: 700 !important;
+            opacity: 1 !important;
+            transition: all 0.3s ease !important;
+            width: 42px !important;
+            height: 42px !important;
+            border-radius: 50% !important;
+            background: #dc2626 !important;
+            border: 2px solid #dc2626 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            line-height: 1 !important;
+        }
+        
+        .swal2-close:hover {
+            opacity: 1 !important;
+            background: #ef4444 !important;
+            border-color: #ef4444 !important;
+            transform: rotate(90deg) scale(1.1) !important;
+            color: #ffffff !important;
+        }
+        
+        .swal2-close:focus {
+            outline: 2px solid #dc2626 !important;
+            outline-offset: 2px !important;
+        }
+        
+        .student-info-container {
+            font-family: 'Inter', sans-serif !important;
+        }
+        
+        /* Incident Info Popup Styles - Emergency Alert System Theme */
+        .incident-info-popup {
+            border-radius: 0 !important;
+            overflow: hidden !important;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4) !important;
+            border: none !important;
+            max-width: 1400px !important;
+            width: 95% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        
+        .incident-info-popup .swal2-html-container {
+            margin: 0 !important;
+            padding: 0 !important;
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+            max-height: 80vh !important;
+            overflow-y: auto !important;
+        }
+        
+        .incident-info-popup .swal2-header {
+            padding: 0 !important;
+            margin: 0 !important;
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+        }
+        
+        .incident-info-popup .swal2-title {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        
+        .incident-info-popup .swal2-actions {
+            margin: 0 !important;
+            padding: 1.5rem 2.5rem !important;
+            margin-top: 0 !important;
+        }
+        
+        .incident-info-popup .swal2-close {
+            display: none !important;
+        }
+        
+        .incident-info-popup > * {
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+        }
+        
+        .incident-info-popup .swal2-html-container > div {
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+        }
+        
+        .incident-info-popup .swal2-html-container > div > div:first-child {
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+        }
+        
+        .incident-info-popup .swal2-html-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .incident-info-popup .swal2-html-container::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        
+        .incident-info-popup .swal2-html-container::-webkit-scrollbar-thumb {
+            background: #dc2626;
+            border-radius: 4px;
+        }
+        
+        .swal2-confirm-incident {
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%) !important;
+            border: none !important;
+            padding: 0.875rem 2.5rem !important;
+            font-weight: 700 !important;
+            font-size: 0.95rem !important;
+            border-radius: 8px !important;
+            transition: all 0.3s ease !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.5px !important;
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3) !important;
+        }
+        
+        .swal2-confirm-incident:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 6px 20px rgba(220, 38, 38, 0.4) !important;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+        }
+        
+        .incident-info-container {
+            font-family: 'Inter', sans-serif !important;
+        }
+        
+        /* Export Popup Styles */
+        .export-popup .swal2-html-container {
+            padding: 0 !important;
+        }
+        
+        .export-popup input[type="radio"] {
+            accent-color: #10b981;
+        }
+        
+        .export-popup label {
+            transition: all 0.2s ease;
+        }
+        
+        .export-popup label:hover {
+            transform: translateY(-2px);
+        }
+        
+        .export-popup input[type="radio"]:checked + * {
+            color: #10b981;
+        }
+        
+        .audit-modal-header {
+            background: linear-gradient(135deg, #1f2937, #374151);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            overflow-y: auto;
+        }
+        
+        .modal-content {
+            background-color: #fefefe;
+            margin: 3% auto;
+            padding: 0;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 800px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            animation: modalFadeIn 0.3s;
+        }
+        
+        @keyframes modalFadeIn {
+            from {opacity: 0; transform: translateY(-20px);}
+            to {opacity: 1; transform: translateY(0);}
+        }
+        
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+        
+        .close:hover {
+            color: #000;
+        }
+        
+        /* Mobile Hamburger Menu Styles */
+        .hamburger-menu {
+            display: none;
+        }
+        
+        .mobile-nav {
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 9999;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease-in-out;
+        }
+        
+        .mobile-nav.show {
+            transform: translateX(0);
+        }
+        
+        @media (min-width: 769px) {
+            .mobile-nav {
+                display: none !important;
+            }
+        }
+        
+        .mobile-nav-content {
+            padding: 2rem;
+            height: 100%;
+            overflow-y: auto;
+        }
+        
+        .mobile-nav-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #374151;
+        }
+        
+        .mobile-nav-item {
+            display: block;
+            padding: 1rem;
+            color: white;
+            text-decoration: none;
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+            transition: background-color 0.2s;
+        }
+        
+        .mobile-nav-item:hover,
+        .mobile-nav-item.active {
+            background-color: #3b82f6;
+        }
+        
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* Professional Leaflet Popup Styling */
+        .leaflet-popup-content-wrapper {
+            border-radius: 12px !important;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15), 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+            border: 1px solid #e5e7eb !important;
+            font-family: 'Inter', sans-serif !important;
+        }
+
+        .leaflet-popup-content {
+            margin: 0 !important;
+            padding: 0 !important;
+            font-size: 13px !important;
+            line-height: 1.5 !important;
+        }
+
+        .leaflet-popup-tip {
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+        }
+
+        .leaflet-popup-close-button {
+            padding: 8px !important;
+            font-size: 18px !important;
+            color: #6b7280 !important;
+            transition: color 0.2s ease !important;
+        }
+
+        .leaflet-popup-close-button:hover {
+            color: #ef4444 !important;
+        }
+
+        @media (max-width: 768px) {
+            .hamburger-menu {
+                display: block;
+            }
+            
+            .desktop-nav {
+                display: none !important;
+            }
+            
+            body {
+                min-width: auto !important;
+            }
+            
+            .max-w-7xl {
+                max-width: 100% !important;
+            }
+            
+            .max-w-8xl {
+                max-width: 100% !important;
+            }
+            
+            table {
+                font-size: 0.75rem;
+            }
+            
+            table th, table td {
+                padding-left: 0.5rem;
+                padding-right: 0.5rem;
+            }
+            
+            .modal-content {
+                max-width: 95%;
+                max-height: 95%;
+                margin: 0.5rem;
+            }
+            
+            .audit-modal-content {
+                max-width: 95%;
+                max-height: 90vh;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-100">
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                {% if category == 'success' %}
+                    <div class="fixed top-4 right-4 bg-white border-l-4 border-green-500 text-gray-800 px-4 py-3 rounded-lg z-50 shadow-lg transition-all duration-300 ease-in-out" id="flashMessage{{ loop.index }}" style="animation: slideInRight 0.3s ease-out;">
+                        <div class="flex items-center">
+                            <i class="fas fa-check-circle mr-2 text-lg text-green-500"></i>
+                            <span class="font-medium">{{ message }}</span>
+                        </div>
+                    </div>
+                {% elif category == 'error' %}
+                    <div class="fixed top-4 right-4 bg-white border-l-4 border-red-500 text-gray-800 px-4 py-3 rounded-lg z-50 shadow-lg transition-all duration-300 ease-in-out" id="flashMessage{{ loop.index }}" style="animation: slideInRight 0.3s ease-out;">
+                        <div class="flex items-center">
+                            <i class="fas fa-exclamation-circle mr-2 text-lg text-red-500"></i>
+                            <span class="font-medium">{{ message }}</span>
+                        </div>
+                    </div>
+                {% elif category == 'warning' %}
+                    <div class="fixed top-4 right-4 bg-white border-l-4 border-yellow-500 text-gray-800 px-4 py-3 rounded-lg z-50 shadow-lg transition-all duration-300 ease-in-out" id="flashMessage{{ loop.index }}" style="animation: slideInRight 0.3s ease-out;">
+                        <div class="flex items-center">
+                            <i class="fas fa-exclamation-triangle mr-2 text-lg text-yellow-500"></i>
+                            <span class="font-medium">{{ message }}</span>
+                        </div>
+                    </div>
+                {% elif category == 'info' %}
+                    <div class="fixed top-4 right-4 bg-white border-l-4 border-blue-500 text-gray-800 px-4 py-3 rounded-lg z-50 shadow-lg transition-all duration-300 ease-in-out" id="flashMessage{{ loop.index }}" style="animation: slideInRight 0.3s ease-out;">
+                        <div class="flex items-center">
+                            <i class="fas fa-info-circle mr-2 text-lg text-blue-500"></i>
+                            <span class="font-medium">{{ message }}</span>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="fixed top-4 right-4 bg-white border-l-4 border-gray-400 text-gray-800 px-4 py-3 rounded-lg z-50 shadow-lg transition-all duration-300 ease-in-out" id="flashMessage{{ loop.index }}" style="animation: slideInRight 0.3s ease-out;">
+                        <div class="flex items-center">
+                            <i class="fas fa-bell mr-2 text-lg text-gray-500"></i>
+                            <span class="font-medium">{{ message }}</span>
+                        </div>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <header class="bg-gray-800 shadow-2xl border-b-4 border-red-600">
+        <div class="max-w-8xl mx-auto px-2 sm:px-4 md:px-6 lg:px-10">
+            <div class="flex justify-between items-center py-2 md:py-4">
+                <div class="flex items-center space-x-2 md:space-x-4 flex-1 min-w-0">
+                    <img src="{{ url_for('static', filename='images/ccis.png') }}" alt="CCIS Logo" class="h-8 w-8 md:h-12 md:w-12 lg:h-14 lg:w-14 flex-shrink-0" data-fallback-src="{{ url_for('static', filename='images/ccis.svg') }}">
+                    <img src="{{ url_for('static', filename='images/ohso.png') }}" alt="OHSO Logo" class="h-8 w-8 md:h-12 md:w-12 lg:h-14 lg:w-14 flex-shrink-0" data-fallback-src="{{ url_for('static', filename='images/ohso.svg') }}">
+                    <img src="{{ url_for('static', filename='images/eas.png') }}" alt="EAS Logo" class="h-8 w-8 md:h-12 md:w-12 lg:h-14 lg:w-14 flex-shrink-0" data-fallback-src="{{ url_for('static', filename='images/eas.svg') }}">
+                    <div class="min-w-0 flex-1">
+                        <h1 class="text-xs sm:text-sm md:text-lg lg:text-2xl font-bold text-white truncate">UMAK'S EMERGENCY ALERT SYSTEM</h1>
+                        <p class="text-xs md:text-sm text-red-300 hidden sm:block">Incident Management</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-6">
+                    <!-- Desktop Navigation -->
+                    <nav class="desktop-nav hidden md:flex items-center space-x-1">
+                        <a href="{{ url_for('dashboard') }}" class="px-4 py-2 rounded-lg font-medium transition-colors text-gray-300 hover:text-white hover:bg-gray-700">
+                            <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
+                        </a>
+                        {% if session.role == 'System Administrator' %}
+                        <a href="{{ url_for('user_management') }}" class="px-4 py-2 rounded-lg font-medium transition-colors text-gray-300 hover:text-white hover:bg-gray-700">
+                            <i class="fas fa-users mr-2"></i>Users
+                        </a>
+                        {% endif %}
+                        <a href="{{ url_for('incident_management') }}" class="px-4 py-2 rounded-lg font-medium transition-colors text-white bg-blue-600">
+                            <i class="fas fa-clipboard-list mr-2"></i>Incidents
+                        </a>
+                    </nav>
+                    
+                    <!-- Mobile Hamburger Menu Button -->
+                    <button id="hamburgerBtn" class="hamburger-menu md:hidden text-white p-2 rounded-lg hover:bg-gray-700 transition-colors" type="button">
+                        <i class="fas fa-bars text-2xl"></i>
+                    </button>
+                
+                    <div class="flex items-center space-x-2 md:space-x-4 lg:space-x-6">
+                        <div class="hidden sm:flex items-center space-x-2">
+                            <div class="w-3 h-3 md:w-4 md:h-4 bg-green-400 rounded-full animate-pulse"></div>
+                            <span class="text-xs md:text-sm font-medium text-green-300">System Online</span>
+                        </div>
+                        
+                        <div class="relative">
+                            <button id="alertsButton" onclick="highlightAlertNotifications()" 
+                                    onmouseenter="showAlertsTooltip(this)" 
+                                    onmouseleave="hideAlertsTooltip(this)"
+                                    class="bg-red-600 hover:bg-red-700 text-white px-2 py-1.5 md:px-4 md:py-2 rounded-lg font-medium transition-colors text-xs md:text-sm">
+                                <i class="fas fa-bell md:mr-2"></i>
+                                <span class="hidden sm:inline">Alerts </span>({{ active_alerts_count }})
+                            </button>
+                            <div id="alertsTooltip" class="alerts-tooltip">
+                                <div class="tooltip-header">
+                                    <i class="fas fa-info-circle mr-1"></i>Alert Details
+                                </div>
+                                <div class="tooltip-item">
+                                    <div class="tooltip-label">
+                                        <i class="fas fa-exclamation-triangle text-red-400"></i>
+                                        <span>Active Alerts:</span>
+                                    </div>
+                                    <span class="tooltip-value">
+                                        <span id="tooltipActiveCount" class="tooltip-badge active">{{ active_incidents }}</span>
+                                    </span>
+                                </div>
+                                <div class="tooltip-item">
+                                    <div class="tooltip-label">
+                                        <i class="fas fa-clock text-orange-400"></i>
+                                        <span>Pending Alerts:</span>
+                                    </div>
+                                    <span class="tooltip-value">
+                                        <span id="tooltipPendingCount" class="tooltip-badge pending">{{ pending_incidents }}</span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="relative">
+                            <div class="flex items-center space-x-1 md:space-x-2 cursor-pointer" id="profileButton">
+                                {% if session.get('admin_profile_exists') and session.admin_profile %}
+                                    <img src="{{ url_for('static', filename='images/' + session.admin_profile) }}" alt="{{ session.admin_name }}" class="w-8 h-8 md:w-10 md:h-10 rounded-full flex-shrink-0 object-cover"
+                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <div class="w-8 h-8 md:w-10 md:h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-xs md:text-sm flex-shrink-0" style="display: none;">
+                                        {{ (session.admin_name or 'Admin')|get_initials }}
+                                    </div>
+                                {% else %}
+                                    <div class="w-8 h-8 md:w-10 md:h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-xs md:text-sm flex-shrink-0">
+                                        {{ (session.admin_name or 'Admin')|get_initials }}
+                                    </div>
+                                {% endif %}
+                                <div class="text-xs md:text-sm text-left hidden sm:block">
+                                    <p class="font-medium text-white truncate max-w-[100px] md:max-w-none flex items-center gap-1.5">
+                                        {{ session.admin_name }}
+                                        {% if session.role == 'Super Admin' or session.role == 'System Administrator' %}
+                                        <span class="relative inline-flex items-center group">
+                                            <i class="fas fa-crown text-yellow-400 text-sm" 
+                                               style="filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); text-shadow: 0 0 4px rgba(255, 215, 0, 0.5);"></i>
+                                            <span class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2.5 py-1.5 text-xs font-medium text-white bg-gray-900 rounded-md shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-50" 
+                                                  style="min-width: max-content;">
+                                                System Administrator (Super Admin)
+                                            </span>
+                                        </span>
+                                        {% endif %}
+                                    </p>
+                                    <p class="text-gray-300 text-xs hidden md:block">{{ session.role }}</p>
+                                </div>
+                                <i class="fas fa-chevron-down text-gray-300 text-xs hidden sm:block"></i>
+                            </div>
+                            
+                            <div id="profileDropdown" class="profile-dropdown">
+                                <a href="{{ url_for('profile') }}">
+                                    <i class="fas fa-user-circle mr-2"></i>My Profile
+                                </a>
+                                <div class="divider"></div>
+                                <a href="{{ url_for('logout') }}">
+                                    <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+    
+    <!-- Mobile Navigation Menu -->
+    <div id="mobileNav" class="mobile-nav">
+        <div class="mobile-nav-content">
+            <div class="mobile-nav-header">
+                <h2 class="text-2xl font-bold text-white">Menu</h2>
+                <button onclick="toggleMobileNav()" class="text-white p-2 rounded-lg hover:bg-gray-700 transition-colors" type="button">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+            <nav class="space-y-2">
+                <a href="{{ url_for('dashboard') }}" onclick="toggleMobileNav();" class="mobile-nav-item flex items-center">
+                    <i class="fas fa-tachometer-alt mr-3"></i>
+                    <span>Dashboard</span>
+                </a>
+                {% if session.role == 'System Administrator' %}
+                <a href="{{ url_for('user_management') }}" onclick="toggleMobileNav();" class="mobile-nav-item flex items-center">
+                    <i class="fas fa-users mr-3"></i>
+                    <span>Users</span>
+                </a>
+                {% endif %}
+                <a href="{{ url_for('incident_management') }}" onclick="toggleMobileNav();" class="mobile-nav-item active flex items-center">
+                    <i class="fas fa-clipboard-list mr-3"></i>
+                    <span>Incidents</span>
+                </a>
+            </nav>
+        </div>
+    </div>
+    
+    <!-- Auto-refresh indicator -->
+    <div id="autoRefreshIndicator" class="auto-refresh-indicator">
+        <i class="fas fa-sync-alt mr-2"></i>Auto-refreshing...
+    </div>
+    
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-content">
+            <div class="loading-spinner-container">
+                <div class="loading-spinner-outer"></div>
+                <div class="loading-spinner-middle"></div>
+                <div class="loading-spinner-inner"></div>
+                <div class="loading-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+            </div>
+            <div class="loading-text">
+                Redirecting to Dashboard
+                <span class="loading-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </span>
+            </div>
+            <div class="loading-subtext">Please wait while we load your alerts</div>
+        </div>
+    </div>
+    
+    <!-- Bulk action toolbar -->
+    <div id="bulkToolbar" class="bulk-action-toolbar">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <span class="text-sm font-medium text-gray-700 mr-4">
+                    <span id="selectedCount">0</span> selected
+                </span>
+                <button onclick="bulkStatusUpdate()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm mr-2">
+                    <i class="fas fa-edit mr-1"></i>Update Status
+                </button>
+            </div>
+            <button onclick="clearBulkSelection()" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+    
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+        <div class="text-center mb-6 md:mb-8">
+            <h1 class="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800 flex items-center justify-center gap-2">
+                <i class="fas fa-clipboard-list text-red-600"></i>
+                <span class="hidden sm:inline">Incident Management System</span>
+                <span class="sm:hidden">Incidents</span>
+            </h1>
+            <p class="mt-2 text-sm md:text-base text-gray-600">Monitor, manage and track all emergency incidents</p>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-6 mb-6 md:mb-8">
+            <div class="bg-white p-4 md:p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
+                <div class="flex items-center">
+                    <div class="rounded-full bg-gray-100 p-2 md:p-3 mr-2 md:mr-4">
+                        <i class="fas fa-list text-gray-600 text-lg md:text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-gray-600 text-xs md:text-sm">Total Incidents</p>
+                        <p class="text-xl md:text-2xl font-bold text-gray-900">{{ total_incidents }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="status-active text-white p-4 md:p-6 rounded-xl">
+                <div class="flex items-center">
+                    <div class="rounded-full bg-red-200 p-2 md:p-3 mr-2 md:mr-4">
+                        <i class="fas fa-exclamation-circle text-red-800 text-lg md:text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-red-100 text-xs md:text-sm">Active</p>
+                        <p class="text-xl md:text-2xl font-bold">{{ active_incidents }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="status-pending text-white p-4 md:p-6 rounded-xl">
+                <div class="flex items-center">
+                    <div class="rounded-full bg-orange-200 p-2 md:p-3 mr-2 md:mr-4">
+                        <i class="fas fa-clock text-orange-800 text-lg md:text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-orange-100 text-xs md:text-sm">Pending</p>
+                        <p class="text-xl md:text-2xl font-bold">{{ pending_incidents }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="status-resolved text-white p-4 md:p-6 rounded-xl">
+                <div class="flex items-center">
+                    <div class="rounded-full bg-green-200 p-2 md:p-3 mr-2 md:mr-4">
+                        <i class="fas fa-check-circle text-green-800 text-lg md:text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-green-100 text-xs md:text-sm">Resolved</p>
+                        <p class="text-xl md:text-2xl font-bold">{{ resolved_incidents }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="status-cancelled text-white p-4 md:p-6 rounded-xl">
+                <div class="flex items-center">
+                    <div class="rounded-full bg-gray-200 p-2 md:p-3 mr-2 md:mr-4">
+                        <i class="fas fa-times-circle text-gray-800 text-lg md:text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-gray-100 text-xs md:text-sm">Cancelled</p>
+                        <p class="text-xl md:text-2xl font-bold">{{ cancelled_incidents }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="bg-white rounded-xl shadow-lg border border-gray-200 mb-6 md:mb-8 overflow-hidden">
+            <!-- Filter Header -->
+            <div class="bg-gradient-to-r from-gray-50 to-gray-100 px-4 md:px-6 py-3 border-b border-gray-200">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-filter text-red-600"></i>
+                    <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Filter & Search</h3>
+                </div>
+            </div>
+            
+            <form method="GET" id="filterForm" class="p-4 md:p-6">
+                <!-- Primary Filters Row -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                    <!-- Sort Filter -->
+                    <div class="flex flex-col">
+                        <label class="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+                            <i class="fas fa-sort-amount-down text-red-600 text-xs"></i>
+                            Sort Order
+                        </label>
+                        <select name="sort" id="sortFilter" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white transition-all hover:border-gray-400">
+                            <option value="recent" {{ 'selected' if sort_order == 'recent' else '' }}>Most Recent First</option>
+                            <option value="old" {{ 'selected' if sort_order == 'old' else '' }}>Oldest First</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Status Filter -->
+                    <div class="flex flex-col">
+                        <label class="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+                            <i class="fas fa-info-circle text-red-600 text-xs"></i>
+                            Status
+                        </label>
+                        <select name="status" id="statusFilter" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white transition-all hover:border-gray-400">
+                            <option value="All" {{ 'selected' if status_filter == 'All' else '' }}>All Status</option>
+                            <option value="Active" {{ 'selected' if status_filter == 'Active' else '' }}>Active</option>
+                            <option value="Pending" {{ 'selected' if status_filter == 'Pending' else '' }}>Pending</option>
+                            <option value="Resolved" {{ 'selected' if status_filter == 'Resolved' else '' }}>Resolved</option>
+                            <option value="Cancelled" {{ 'selected' if status_filter == 'Cancelled' else '' }}>Cancelled</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Category Filter -->
+                    <div class="flex flex-col">
+                        <label class="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+                            <i class="fas fa-tags text-red-600 text-xs"></i>
+                            Category
+                        </label>
+                        <select name="category" id="categoryFilter" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white transition-all hover:border-gray-400">
+                            <option value="All" {{ 'selected' if category_filter == 'All' else '' }}>All Categories</option>
+                            {% for category in categories_list %}
+                            <option value="{{ category }}" {{ 'selected' if category_filter == category else '' }}>{{ category }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Search Filter -->
+                    <div class="flex flex-col">
+                        <label class="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+                            <i class="fas fa-search text-red-600 text-xs"></i>
+                            Search
+                        </label>
+                        <div class="relative">
+                            <input type="text" name="search" id="searchInput" value="{{ search_term }}" 
+                                   placeholder="Search incidents..." 
+                                   class="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all hover:border-gray-400">
+                            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></i>
+                            {% if search_term %}
+                            <button type="button" onclick="clearSearch()" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-600 transition-colors">
+                                <i class="fas fa-times text-sm"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Date Range Row -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 pb-4 border-b border-gray-200">
+                    <div class="flex flex-col">
+                        <label class="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+                            <i class="fas fa-calendar-alt text-red-600 text-xs"></i>
+                            Start Date
+                        </label>
+                        <input type="date" name="start_date" id="startDateFilter" value="{{ start_date }}" 
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white transition-all hover:border-gray-400">
+                    </div>
+                    <div class="flex flex-col">
+                        <label class="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+                            <i class="fas fa-calendar-check text-red-600 text-xs"></i>
+                            End Date
+                        </label>
+                        <input type="date" name="end_date" id="endDateFilter" value="{{ end_date }}" 
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white transition-all hover:border-gray-400">
+                    </div>
+                    <div class="flex items-end">
+                        <button type="button" onclick="clearDateFilters()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-lg font-medium transition-colors text-sm flex items-center justify-center gap-2 border border-gray-300">
+                            <i class="fas fa-times"></i>
+                            <span>Clear Dates</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons Row -->
+                <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                    <button type="button" onclick="exportIncidents()" class="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-all text-sm shadow-md hover:shadow-lg flex items-center justify-center gap-2">
+                        <i class="fas fa-download"></i>
+                        <span>Export Incidents</span>
+                    </button>
+                    <button type="button" 
+                            onclick="viewArchivedIncidents()" 
+                            class="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-lg font-semibold transition-all text-sm shadow-md flex items-center justify-center gap-2">
+                        <i class="fas fa-archive"></i>
+                        <span>Archived</span>
+                        <span id="archivedCountBadge" class="ml-2 bg-white text-orange-600 rounded-full px-2 py-0.5 text-xs font-bold min-w-[20px] text-center">0</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Incidents Table -->
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden mx-2 md:mx-6">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left text-gray-600">
+                    <thead>
+                        <tr class="bg-gray-100 text-gray-700">
+                            <th class="py-4 px-6 font-semibold">Incident ID</th>
+                            <th class="py-4 px-6 font-semibold">Location</th>
+                            <th class="py-4 px-6 font-semibold">Category</th>
+                            <th class="py-4 px-6 font-semibold">Student/Reporter</th>
+                            <th class="py-4 px-6 font-semibold">Status</th>
+                            <th class="py-4 px-6 font-semibold">Reported Time</th>
+                            <th class="py-4 px-6 font-semibold">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if incidents %}
+                            {% for incident in incidents %}
+                            <tr class="border-b hover:bg-gray-50 transition-colors" data-incident-id="{{ incident.icd_id }}">
+                                <td class="py-4 px-6">
+                                    <div class="font-semibold text-gray-900">{{ incident.icd_id }}</div>
+                                    {% if incident.icd_description %}
+                                        <div class="text-xs text-gray-500 mt-1">{{ incident.icd_description[:50] }}{% if incident.icd_description|length > 50 %}...{% endif %}</div>
+                                    {% endif %}
+                                </td>
+                                <td class="py-4 px-6">
+                                    <div class="text-sm">
+                                        <div class="font-medium">Lat: {{ "%.6f"|format(incident.icd_lat) }}</div>
+                                        <div class="font-medium">Lng: {{ "%.6f"|format(incident.icd_lng) }}</div>
+                                        {% set distance_km = ((incident.icd_lat - 14.5633428) ** 2 + (incident.icd_lng - 121.0565387) ** 2) ** 0.5 * 111 %}
+                                        <div class="text-xs text-gray-500">{{ "%.0f"|format(distance_km * 1000) }}m from UMAK</div>
+                                    </div>
+                                </td>
+                                <td class="py-4 px-6">
+                                    {% if incident.icd_category %}
+                                        {% if incident.icd_category == 'Medical' %}
+                                            <span class="status-badge bg-red-100 text-red-800">
+                                                <i class="fas fa-heartbeat mr-1"></i>{{ incident.icd_category }}
+                                            </span>
+                                        {% elif incident.icd_category == 'Security' %}
+                                            <span class="status-badge bg-blue-100 text-blue-800">
+                                                <i class="fas fa-shield-alt mr-1"></i>{{ incident.icd_category }}
+                                            </span>
+                                        {% elif incident.icd_category == 'University' %}
+                                            <span class="status-badge bg-yellow-100 text-yellow-800">
+                                                <i class="fas fa-university mr-1"></i>{{ incident.icd_category }}
+                                            </span>
+                                        {% elif incident.icd_category == 'Urgent' %}
+                                            <span class="status-badge bg-red-200 text-red-900">
+                                                <i class="fas fa-exclamation-triangle mr-1"></i>{{ incident.icd_category }}
+                                            </span>
+                                        {% else %}
+                                            <span class="status-badge bg-gray-100 text-gray-800">
+                                                {{ incident.icd_category }}
+                                            </span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="status-badge bg-gray-100 text-gray-800">Unknown</span>
+                                    {% endif %}
+                                    
+                                    {% if incident.icd_medical_type %}
+                                        <div class="text-xs text-gray-600 mt-1">{{ incident.icd_medical_type }}</div>
+                                    {% elif incident.icd_security_type %}
+                                        <div class="text-xs text-gray-600 mt-1">{{ incident.icd_security_type }}</div>
+                                    {% elif incident.icd_university_type %}
+                                        <div class="text-xs text-gray-600 mt-1">{{ incident.icd_university_type }}</div>
+                                    {% endif %}
+                                </td>
+                                <td class="py-4 px-6">
+                                    {% if incident.student_name %}
+                                        <div class="flex items-center">
+                                            <i class="fas fa-user-graduate text-green-600 mr-2"></i>
+                                            <div>
+                                                <div class="font-medium text-gray-900">{{ incident.student_name }}</div>
+                                                {% if incident.student_number %}
+                                                    <div class="text-xs text-gray-500">{{ incident.student_number }}</div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    {% elif incident.admin_name %}
+                                        <div class="flex items-center">
+                                            <i class="fas fa-user-shield text-red-600 mr-2"></i>
+                                            <div>
+                                                <div class="font-medium text-gray-900">{{ incident.admin_name }}</div>
+                                                <div class="text-xs text-gray-500">Administrator</div>
+                                            </div>
+                                        </div>
+                                    {% else %}
+                                        <div class="flex items-center text-gray-500">
+                                            <i class="fas fa-user-question mr-2"></i>
+                                            <span>Unknown</span>
+                                        </div>
+                                    {% endif %}
+                                </td>
+                                <td class="py-4 px-6">
+                                    {% set status_badge = 'bg-gray-100 text-gray-800' %}
+                                    {% set status_icon = 'fa-question-circle' %}
+                                    {% if incident.icd_status == 'Active' %}
+                                        {% set status_badge = 'bg-red-100 text-red-800' %}
+                                        {% set status_icon = 'fa-exclamation-circle' %}
+                                    {% elif incident.icd_status == 'Pending' %}
+                                        {% set status_badge = 'bg-orange-100 text-orange-800' %}
+                                        {% set status_icon = 'fa-clock' %}
+                                    {% elif incident.icd_status == 'Resolved' %}
+                                        {% set status_badge = 'bg-green-100 text-green-800' %}
+                                        {% set status_icon = 'fa-check-circle' %}
+                                    {% elif incident.icd_status == 'Cancelled' %}
+                                        {% set status_badge = 'bg-gray-200 text-gray-700' %}
+                                        {% set status_icon = 'fa-times-circle' %}
+                                    {% endif %}
+                                    <div class="space-y-2">
+                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold {{ status_badge }}">
+                                            <i class="fas {{ status_icon }} mr-2"></i>{{ incident.icd_status or 'Unknown' }}
+                                        </span>
+                                        <form method="POST" class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center" onsubmit="return handleStatusUpdate(this);">
+                                        <input type="hidden" name="incident_id" value="{{ incident.icd_id }}">
+                                        <input type="hidden" name="current_status_filter" value="{{ status_filter }}">
+                                        <input type="hidden" name="current_search_term" value="{{ search_term }}">
+                                        <input type="hidden" name="current_sort_order" value="{{ sort_order }}">
+                                            <input type="hidden" name="update" value="1">
+                                        <select name="status" class="border border-gray-300 rounded px-3 py-1 text-sm focus:ring-2 focus:ring-red-500" data-current-status="{{ incident.icd_status }}">
+                                            <option value="Active" {{ 'selected' if incident.icd_status == 'Active' else '' }}>Active</option>
+                                            <option value="Pending" {{ 'selected' if incident.icd_status == 'Pending' else '' }}>Pending</option>
+                                            <option value="Resolved" {{ 'selected' if incident.icd_status == 'Resolved' else '' }}>Resolved</option>
+                                            <option value="Cancelled" {{ 'selected' if incident.icd_status == 'Cancelled' else '' }}>Cancelled</option>
+                                        </select>
+                                            <button type="submit" class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 transition-colors flex items-center justify-center">
+                                                <i class="fas fa-save mr-1"></i>
+                                                <span class="whitespace-nowrap">Update</span>
+                                        </button>
+                                    </form>
+                                    </div>
+                                </td>
+                                <td class="py-4 px-6">
+                                    <div class="text-sm">
+                                        {% if incident.icd_timestamp %}
+                                            <div class="text-gray-900">{{ incident.icd_timestamp|format_datetime }}</div>
+                                        {% endif %}
+                                        
+                                        {% if incident.resolved_timestamp %}
+                                            <div class="text-xs text-green-600 mt-1 flex items-center">
+                                                <i class="fas fa-check-circle mr-1"></i>
+                                                Resolved: {{ incident.resolved_timestamp|format_datetime }}
+                                            </div>
+                                        {% endif %}
+                                        
+                                        {% if incident.pending_timestamp %}
+                                            <div class="text-xs text-orange-600 mt-1 flex items-center">
+                                                <i class="fas fa-clock mr-1"></i>
+                                                Pending: {{ incident.pending_timestamp|format_datetime }}
+                                            </div>
+                                        {% endif %}
+                                        
+                                        {% if incident.cancelled_timestamp %}
+                                            <div class="text-xs text-gray-600 mt-1 flex items-center">
+                                                <i class="fas fa-times-circle mr-1"></i>
+                                                Cancelled: {{ incident.cancelled_timestamp|format_datetime }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="py-4 px-6">
+                                    <div class="flex space-x-1">
+                                        {% if incident.student_user_id %}
+                                        <button onclick="viewStudent('{{ incident.student_user_id }}')" 
+                                                class="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-colors" 
+                                                title="View Student Details">
+                                            <i class="fas fa-user-graduate"></i>
+                                        </button>
+                                        {% endif %}
+                                        <button onclick="viewIncident('{{ incident.icd_id }}')" 
+                                                class="p-2 text-green-600 hover:bg-green-50 rounded-full transition-colors" 
+                                                title="View Incident Details">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button onclick="printIncidentPDF('{{ incident.icd_id }}')" 
+                                                class="p-2 text-red-600 hover:bg-red-50 rounded-full transition-colors" 
+                                                title="Print PDF">
+                                            <i class="fas fa-file-pdf"></i>
+                                        </button>
+                                        <button onclick="viewAuditTrail('{{ incident.icd_id }}')" 
+                                                class="p-2 text-purple-600 hover:bg-purple-50 rounded-full transition-colors" 
+                                                title="View Audit Trail">
+                                            <i class="fas fa-history"></i>
+                                        </button>
+                                        <button onclick="archiveIncidentPrompt('{{ incident.icd_id }}')" 
+                                                class="p-2 text-orange-600 hover:bg-orange-50 rounded-full transition-colors" 
+                                                title="Archive Incident">
+                                            <i class="fas fa-archive"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-12">
+                                    <div class="flex flex-col items-center">
+                                        <i class="fas fa-clipboard-list text-4xl text-gray-400 mb-4"></i>
+                                        <h3 class="text-lg font-medium text-gray-900 mb-2">No incidents found</h3>
+                                        <p class="text-gray-500">No incidents match your current filter criteria.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Table Footer -->
+            <div class="px-6 py-4 border-t bg-gray-50">
+                <div class="flex items-center justify-between">
+                    <div class="text-sm text-gray-700">
+                        Showing <span class="font-medium">{{ results_count }}</span> 
+                        {% if results_count == 1 %}result{% else %}results{% endif %}
+                        {% if search_term %}
+                            for "<span class="font-medium">{{ search_term }}</span>"
+                        {% endif %}
+                        {% if status_filter != 'All' %}
+                            with status: <span class="font-medium">{{ status_filter }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="text-sm text-gray-500">
+                        Total: {{ total_incidents }} incidents
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Details Modal -->
+    <div id="studentModal" class="modal">
+        <div class="modal-content">
+            <div class="bg-gradient-to-r from-blue-700 to-orange-900 text-white p-6 rounded-t-lg">
+                <span class="close text-white text-3xl font-bold hover:text-gray-200 cursor-pointer" onclick="closeModal()">&times;</span>
+                <h2 class="text-2xl font-bold">Student Information</h2>
+                <p class="text-blue-100">Complete student profile details</p>
+            </div>
+            
+            <div class="p-6 max-h-96 overflow-y-auto">
+                {% if student_details %}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="md:col-span-2 flex items-center justify-center mb-6">
+                        <div class="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center">
+                            {% if student_details.student_profile %}
+                                <img src="{{ url_for('static', filename='images/' + student_details.student_profile) }}" alt="Student Profile" class="w-24 h-24 rounded-full object-cover">
+                            {% else %}
+                                <div class="w-24 h-24 bg-gray-300 rounded-full flex flex-col items-center justify-center">
+                                    <i class="fas fa-user text-2xl text-gray-500"></i>
+                                    <span class="text-xs text-gray-500 mt-1">No Image</span>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Student ID</label>
+                        <div class="w-full px-4 py-3 bg-gray-50 rounded-lg border border-gray-200">
+                            {{ student_details.student_id or 'N/A' }}
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                        <div class="w-full px-4 py-3 bg-gray-50 rounded-lg border border-gray-200">
+                            {{ student_details.student_user or 'N/A' }}
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                        <div class="w-full px-4 py-3 bg-gray-50 rounded-lg border border-gray-200">
+                            {{ student_details.full_name or 'N/A' }}
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                        <div class="w-full px-4 py-3 bg-gray-50 rounded-lg border border-gray-200">
+                            {{ student_details.student_email or 'N/A' }}
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Year Level</label>
+                        <div class="w-full px-4 py-3 bg-gray-50 rounded-lg border border-gray-200">
+                            {{ student_details.student_yearlvl or 'N/A' }}
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Contact Number</label>
+                        <div class="w-full px-4 py-3 bg-gray-50 rounded-lg border border-gray-200">
+                            {{ student_details.student_cnum or 'N/A' }}
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-8">
+                    <i class="fas fa-user-slash text-4xl text-gray-400 mb-4"></i>
+                    <p class="text-gray-600">No student information available</p>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="bg-gray-50 px-6 py-4 rounded-b-lg border-t border-gray-200">
+                <button type="button" onclick="closeModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors duration-200">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audit Trail Modal -->
+    <div id="auditModal" class="audit-modal">
+        <div class="audit-modal-content">
+            <div class="audit-modal-header">
+                <h3 class="text-lg font-semibold">Incident Audit Trail</h3>
+                <button onclick="closeAuditModal()" class="text-white hover:text-gray-300">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="p-6 max-h-60vh overflow-y-auto" id="auditTimeline">
+                <div class="text-center py-8">
+                    <i class="fas fa-spinner fa-spin text-2xl text-gray-400"></i>
+                    <p class="text-gray-600 mt-2">Loading audit trail...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pass student details to JavaScript -->
+    <script type="application/json" id="student-details-data">
+        {% if student_details %}{{ student_details.user_id|tojson }}{% else %}null{% endif %}
+    </script>
+
+    <script>
+        let autoRefreshInterval;
+        let isRefreshing = false;
+        
+        // Mobile navigation toggle function - must be in global scope
+        function toggleMobileNav() {
+            const mobileNav = document.getElementById('mobileNav');
+            if (mobileNav) {
+                mobileNav.classList.toggle('show');
+                // Prevent body scroll when menu is open
+                if (mobileNav.classList.contains('show')) {
+                    document.body.style.overflow = 'hidden';
+                } else {
+                    document.body.style.overflow = '';
+                }
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize auto-refresh
+            initializeAutoRefresh();
+            
+            // Profile dropdown functionality
+            const profileButton = document.getElementById('profileButton');
+            const profileDropdown = document.getElementById('profileDropdown');
+            
+            if (profileButton && profileDropdown) {
+                profileButton.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    profileDropdown.style.display = profileDropdown.style.display === 'block' ? 'none' : 'block';
+                });
+                
+                document.addEventListener('click', function(e) {
+                    if (!profileButton.contains(e.target) && !profileDropdown.contains(e.target)) {
+                        profileDropdown.style.display = 'none';
+                    }
+                });
+            }
+            
+            // Auto-submit filters
+            const statusFilter = document.getElementById('statusFilter');
+            const sortFilter = document.getElementById('sortFilter');
+            const searchInput = document.getElementById('searchInput');
+            
+            if (statusFilter) {
+                statusFilter.addEventListener('change', function() {
+                    document.getElementById('filterForm').submit();
+                });
+            }
+            
+            if (sortFilter) {
+                sortFilter.addEventListener('change', function() {
+                    document.getElementById('filterForm').submit();
+                });
+            }
+            
+            const categoryFilter = document.getElementById('categoryFilter');
+            if (categoryFilter) {
+                categoryFilter.addEventListener('change', function() {
+                    document.getElementById('filterForm').submit();
+                });
+            }
+            
+            const startDateFilter = document.getElementById('startDateFilter');
+            const endDateFilter = document.getElementById('endDateFilter');
+            if (startDateFilter) {
+                startDateFilter.addEventListener('change', function() {
+                    // Only submit if end date is also set or if clearing
+                    if (endDateFilter && endDateFilter.value) {
+                        document.getElementById('filterForm').submit();
+                    } else if (!this.value) {
+                        // If clearing start date, submit immediately
+                        document.getElementById('filterForm').submit();
+                    }
+                });
+            }
+            if (endDateFilter) {
+                endDateFilter.addEventListener('change', function() {
+                    // Submit when end date changes
+                    document.getElementById('filterForm').submit();
+                });
+            }
+            
+            // Search with debounce
+            if (searchInput) {
+                let searchTimeout;
+                let lastSearchValue = searchInput.value;
+                searchInput.addEventListener('input', function() {
+                    const currentValue = this.value;
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(function() {
+                        // Only submit if value actually changed
+                        if (currentValue !== lastSearchValue) {
+                            lastSearchValue = currentValue;
+                            document.getElementById('filterForm').submit();
+                        }
+                    }, 500);
+                });
+                
+                // Also handle Enter key for immediate search
+                searchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        clearTimeout(searchTimeout);
+                        document.getElementById('filterForm').submit();
+                    }
+                });
+            }
+            
+            // Show student modal if student details are available
+            const studentDetailsElement = document.getElementById('student-details-data');
+            if (studentDetailsElement) {
+                try {
+                    const studentDetailsData = JSON.parse(studentDetailsElement.textContent);
+                    if (studentDetailsData) {
+                        viewStudent(studentDetailsData);
+                    }
+                } catch (e) {
+                    console.error('Error parsing student details:', e);
+                }
+            }
+            
+            // Initialize hamburger button click handler
+            const hamburgerBtn = document.getElementById('hamburgerBtn');
+            if (hamburgerBtn) {
+                hamburgerBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    toggleMobileNav();
+                });
+            }
+            
+            // Load archived count on page load
+            loadArchivedCount();
+        });
+        
+        function formatDisplayTimestamp(ts, fallback = 'N/A') {
+            if (!ts) return fallback;
+            try {
+                const date = new Date(ts);
+                if (Number.isNaN(date.getTime())) return fallback;
+                return date.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: '2-digit',
+                    timeZone: 'Asia/Manila'
+                }) + ' ' + date.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true,
+                    timeZone: 'Asia/Manila'
+                });
+            } catch (error) {
+                return fallback;
+            }
+        }
+
+        function buildMetricCard(label, value) {
+            return `
+                <div class="metric-card">
+                    <span class="metric-label">${label}</span>
+                    <span class="metric-value">${value}</span>
+                </div>
+            `;
+        }
+
+        function buildStudentInfoHTML(student) {
+            if (!student) {
+                return `<p class="text-center text-gray-500 py-4">No student information available for this incident.</p>`;
+            }
+
+            // Escape HTML to prevent XSS
+            const escapeHtml = (text) => {
+                if (!text) return 'N/A';
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            };
+
+            // Get initials for fallback
+            const getInitials = (name) => {
+                if (!name || name === 'N/A') return 'ST';
+                const parts = name.trim().split(' ').filter(p => p.length > 0);
+                if (parts.length >= 2) {
+                    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+                }
+                return name.substring(0, 2).toUpperCase();
+            };
+            
+            const initials = getInitials(student.full_name);
+            const hasProfileImage = student.student_profile && 
+                                   student.student_profile.trim() !== '' && 
+                                   student.student_profile !== 'default.png' &&
+                                   student.student_profile !== 'null';
+            
+            // Get profile image URL - check if it's a full URL (Supabase storage) or local path
+            let profileImageUrl = null;
+            if (hasProfileImage) {
+                const profileValue = student.student_profile.trim();
+                // Check if it's already a full URL (Supabase storage URL)
+                if (profileValue.startsWith('http://') || profileValue.startsWith('https://')) {
+                    profileImageUrl = escapeHtml(profileValue);
+                } else {
+                    // Local static file path
+                    profileImageUrl = escapeHtml(profileValue);
+                }
+            }
+            
+            // Create profile image for left panel (larger size)
+            const createProfileImage = (size) => {
+                const sizePx = size + 'px';
+                if (profileImageUrl) {
+                    // Determine if it's a full URL or local path
+                    const imageSrc = profileImageUrl.startsWith('http://') || profileImageUrl.startsWith('https://') 
+                        ? profileImageUrl 
+                        : `/static/images/${profileImageUrl}`;
+                    
+                    return `<div style="position: relative; width: ${sizePx}; height: ${sizePx}; flex-shrink: 0; margin: 0 auto;">
+                         <img id="studentProfileImg" 
+                              src="${imageSrc}" 
+                              alt="Profile Picture" 
+                              style="width: ${sizePx}; height: ${sizePx}; border-radius: 50%; object-fit: cover; border: 4px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: block; background: linear-gradient(135deg, #ef4444, #dc2626);"
+                              onerror="this.onerror=null; this.style.display='none'; const fallback = this.nextElementSibling; if(fallback) fallback.style.display='flex';">
+                         <div id="profileFallback" style="width: ${sizePx}; height: ${sizePx}; border-radius: 50%; background: linear-gradient(135deg, #ef4444, #dc2626); display: none; align-items: center; justify-content: center; border: 4px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.15); position: absolute; top: 0; left: 0;">
+                             <span style="color: white; font-size: ${size * 0.4}px; font-weight: 700; letter-spacing: 1px;">${initials}</span>
+                    </div>
+                       </div>`;
+                } else {
+                    return `<div style="width: ${sizePx}; height: ${sizePx}; border-radius: 50%; background: linear-gradient(135deg, #ef4444, #dc2626); display: flex; align-items: center; justify-content: center; border: 4px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.15); flex-shrink: 0; margin: 0 auto;">
+                         <span style="color: white; font-size: ${size * 0.4}px; font-weight: 700; letter-spacing: 1px;">${initials}</span>
+                       </div>`;
+                }
+            };
+            
+            const profileImage = createProfileImage(180);
+
+            return `
+                <div style="width: 100%; background: white; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.1);">
+                    <!-- Emergency Alert System Header -->
+                    <div style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); padding: 2rem 2.5rem; color: white; position: relative; overflow: hidden; width: 100%; margin: 0; min-height: 120px; display: flex; align-items: center;">
+                        <div style="position: absolute; top: -50px; right: -50px; width: 200px; height: 200px; background: rgba(255,255,255,0.1); border-radius: 50%;"></div>
+                        <div style="position: absolute; bottom: -30px; left: -30px; width: 150px; height: 150px; background: rgba(255,255,255,0.05); border-radius: 50%;"></div>
+                        <div style="position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; width: 100%; padding-top: 1.5rem;">
+                            <!-- Left Section: Icon and Title -->
+                            <div style="display: flex; align-items: center; gap: 1.25rem;">
+                                <div style="width: 56px; height: 56px; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                    <i class="fas fa-user-graduate" style="font-size: 1.75rem; color: white;"></i>
+                    </div>
+                                <div style="display: flex; flex-direction: column; gap: 0.375rem;">
+                                    <h2 style="margin: 0; padding: 0; font-size: 1.75rem; font-weight: 700; letter-spacing: -0.5px; line-height: 1.2;">STUDENT INFORMATION</h2>
+                                    <p style="margin: 0; padding: 0; font-size: 0.9rem; opacity: 0.95; font-weight: 400; line-height: 0.5;">Emergency Alert System - Student Profile</p>
+                    </div>
+                    </div>
+                            <!-- Right Section: Badge -->
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <div style="padding: 0.625rem 1.25rem; background: rgba(255,255,255,0.15); border-radius: 8px; backdrop-filter: blur(10px); display: flex; align-items: center; gap: 0.5rem;">
+                                    <i class="fas fa-user-graduate" style="font-size: 0.875rem;"></i>
+                                    <span style="font-size: 0.875rem; font-weight: 600; letter-spacing: 0.25px;">Student Profile</span>
+                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Main Content - Two Column Layout -->
+                    <div style="display: flex; gap: 0; background: #f9fafb; width: 100%; min-height: calc(100vh - 140px);">
+                        <!-- Left Side - Profile Picture -->
+                        <div style="flex-shrink: 0; width: 320px;">
+                            <div style="background: white; padding: 2rem; border-right: 2px solid #fee2e2; text-align: center; height: 100%; min-height: 100%; position: sticky; top: 0;">
+                                <div style="display: flex; justify-content: center; margin-bottom: 1.5rem;">
+                                    ${profileImage}
+                    </div>
+                                <div style="border-top: 2px solid #fee2e2; padding-top: 1.5rem;">
+                                    <h3 style="margin: 0 0 0.5rem 0; font-size: 1.25rem; font-weight: 700; color: #1f2937;">${escapeHtml(student.full_name || 'N/A')}</h3>
+                                    <p style="margin: 0; font-size: 0.95rem; color: #6b7280; font-weight: 600;">${escapeHtml(student.student_id || 'N/A')}</p>
+                                    <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #9ca3af;">${escapeHtml(student.student_college || 'N/A')} • ${escapeHtml(student.student_yearlvl || 'N/A')}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Side - Form Fields -->
+                        <div style="flex: 1; min-width: 0; padding: 2.5rem;">
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-bottom: 1.5rem;">
+                            
+                            <!-- Student ID Field -->
+                            <div style="background: white; border-radius: 8px; padding: 1.25rem; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">
+                                    <i class="fas fa-id-card" style="color: #ef4444;"></i>
+                                    Student ID
+                                </label>
+                                <div style="padding: 0.875rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; color: #1f2937; font-weight: 600; font-size: 0.95rem;">${escapeHtml(student.student_id || 'N/A')}</div>
+                    </div>
+
+                            <!-- Username Field -->
+                            <div style="background: white; border-radius: 8px; padding: 1.25rem; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">
+                                    <i class="fas fa-user" style="color: #ef4444;"></i>
+                                    Username
+                                </label>
+                                <div style="padding: 0.875rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; color: #1f2937; font-weight: 600; font-size: 0.95rem;">${escapeHtml(student.student_user || 'N/A')}</div>
+                            </div>
+
+                            <!-- Email Field -->
+                            <div style="background: white; border-radius: 8px; padding: 1.25rem; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">
+                                    <i class="fas fa-envelope" style="color: #ef4444;"></i>
+                                    Email Address
+                                </label>
+                                <div style="padding: 0.875rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; color: #1f2937; font-weight: 600; font-size: 0.95rem;">${escapeHtml(student.student_email || 'N/A')}</div>
+                            </div>
+
+                            <!-- Contact Number Field -->
+                            <div style="background: white; border-radius: 8px; padding: 1.25rem; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">
+                                    <i class="fas fa-phone" style="color: #ef4444;"></i>
+                                    Contact Number
+                                </label>
+                                <div style="padding: 0.875rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; color: #1f2937; font-weight: 600; font-size: 0.95rem;">${escapeHtml(student.student_cnum || 'N/A')}</div>
+                            </div>
+
+                            <!-- Year Level Field -->
+                            <div style="background: white; border-radius: 8px; padding: 1.25rem; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">
+                                    <i class="fas fa-graduation-cap" style="color: #ef4444;"></i>
+                                    Year Level
+                                </label>
+                                <div style="padding: 0.875rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; color: #1f2937; font-weight: 600; font-size: 0.95rem;">${escapeHtml(student.student_yearlvl || 'N/A')}</div>
+                            </div>
+
+                            <!-- College Field -->
+                            <div style="background: white; border-radius: 8px; padding: 1.25rem; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">
+                                    <i class="fas fa-university" style="color: #ef4444;"></i>
+                                    College
+                                </label>
+                                <div style="padding: 0.875rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; color: #1f2937; font-weight: 600; font-size: 0.95rem;">${escapeHtml(student.student_college || 'N/A')}</div>
+                            </div>
+
+                            <!-- Address Field (Full Width) -->
+                            <div style="background: white; border-radius: 8px; padding: 1.25rem; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.05); grid-column: 1 / -1;">
+                                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">
+                                    <i class="fas fa-map-marker-alt" style="color: #ef4444;"></i>
+                                    Address
+                                </label>
+                                <div style="padding: 0.875rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; color: #1f2937; font-weight: 500; font-size: 0.95rem; min-height: 3rem; line-height: 1.5;">${escapeHtml(student.student_address || 'N/A')}</div>
+                            </div>
+                        </div>
+
+                        <!-- Emergency Contacts Section -->
+                        <div style="background: white; border-radius: 8px; padding: 1.5rem; border: 2px solid #fef2f2; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.1); margin-bottom: 1.5rem;">
+                            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem; padding-bottom: 1rem; border-bottom: 2px solid #fee2e2;">
+                                <div style="width: 45px; height: 45px; background: linear-gradient(135deg, #ef4444, #dc2626); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-exclamation-triangle text-white" style="font-size: 1.25rem;"></i>
+                                </div>
+                                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #1f2937;">EMERGENCY CONTACTS</h3>
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem;">
+                                <div style="padding: 1.25rem; background: linear-gradient(135deg, #fef2f2, #fee2e2); border-radius: 8px; border: 2px solid #fecaca;">
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                                        <i class="fas fa-user-circle" style="color: #dc2626; font-size: 1.1rem;"></i>
+                                        <span style="font-size: 0.75rem; font-weight: 700; color: #991b1b; text-transform: uppercase; letter-spacing: 0.5px;">Primary Contact</span>
+                                    </div>
+                                    <div style="font-size: 1rem; font-weight: 700; color: #1f2937; margin-bottom: 0.5rem;">${escapeHtml(student.primary_contactperson || 'N/A')}</div>
+                                    <div style="font-size: 0.9rem; color: #6b7280; margin-bottom: 0.25rem;">
+                                        <i class="fas fa-phone-alt" style="color: #ef4444; margin-right: 0.5rem;"></i>${escapeHtml(student.primary_emergencycontact || 'N/A')}
+                                    </div>
+                                    ${student.primary_cprelationship ? `<div style="font-size: 0.8rem; color: #9ca3af; font-style: italic; margin-top: 0.5rem;">
+                                        <i class="fas fa-link" style="margin-right: 0.25rem;"></i>${escapeHtml(student.primary_cprelationship)}
+                                    </div>` : ''}
+                                </div>
+                                <div style="padding: 1.25rem; background: linear-gradient(135deg, #fef2f2, #fee2e2); border-radius: 8px; border: 2px solid #fecaca;">
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                                        <i class="fas fa-user-circle" style="color: #dc2626; font-size: 1.1rem;"></i>
+                                        <span style="font-size: 0.75rem; font-weight: 700; color: #991b1b; text-transform: uppercase; letter-spacing: 0.5px;">Secondary Contact</span>
+                                    </div>
+                                    <div style="font-size: 1rem; font-weight: 700; color: #1f2937; margin-bottom: 0.5rem;">${escapeHtml(student.secondary_contactperson || 'N/A')}</div>
+                                    <div style="font-size: 0.9rem; color: #6b7280; margin-bottom: 0.25rem;">
+                                        <i class="fas fa-phone-alt" style="color: #ef4444; margin-right: 0.5rem;"></i>${escapeHtml(student.secondary_emergencycontact || 'N/A')}
+                                    </div>
+                                    ${student.secondary_cprelationship ? `<div style="font-size: 0.8rem; color: #9ca3af; font-style: italic; margin-top: 0.5rem;">
+                                        <i class="fas fa-link" style="margin-right: 0.25rem;"></i>${escapeHtml(student.secondary_cprelationship)}
+                                    </div>` : ''}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Medical Information Section -->
+                        ${student.student_medinfo ? `
+                        <div style="background: white; border-radius: 8px; padding: 1.5rem; border: 2px solid #fef2f2; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.1);">
+                            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 2px solid #fee2e2;">
+                                <div style="width: 45px; height: 45px; background: linear-gradient(135deg, #ef4444, #dc2626); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-heartbeat text-white" style="font-size: 1.25rem;"></i>
+                                </div>
+                                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #1f2937;">MEDICAL INFORMATION</h3>
+                            </div>
+                            <div style="padding: 1.25rem; background: #fef2f2; border-radius: 8px; border: 1px solid #fecaca;">
+                                <div style="font-size: 0.95rem; color: #1f2937; line-height: 1.7; font-weight: 500;">${escapeHtml(student.student_medinfo)}</div>
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function buildIncidentDetailsHTML(incident) {
+            if (!incident) {
+                return `<p class="text-center text-gray-500 py-4">Incident details are unavailable.</p>`;
+            }
+
+            // Escape HTML to prevent XSS
+            const escapeHtml = (text) => {
+                if (!text) return 'N/A';
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            };
+
+            const status = (incident.icd_status || 'Unknown');
+            const statusColor = status === 'Active' ? '#ef4444' : 
+                               status === 'Pending' ? '#f59e0b' : 
+                               status === 'Resolved' ? '#10b981' : 
+                               status === 'Cancelled' ? '#6b7280' : '#6b7280';
+            
+            const statusBg = status === 'Active' ? '#fee2e2' : 
+                            status === 'Pending' ? '#fef3c7' : 
+                            status === 'Resolved' ? '#d1fae5' : 
+                            status === 'Cancelled' ? '#f3f4f6' : '#f3f4f6';
+
+            // Determine incident type
+            let incidentType = 'General Emergency';
+            if (incident.icd_category === 'Medical') {
+                incidentType = incident.icd_medical_type || 'Medical Emergency';
+            } else if (incident.icd_category === 'Security') {
+                incidentType = incident.icd_security_type || 'Security Emergency';
+            } else if (incident.icd_category === 'University') {
+                incidentType = incident.icd_university_type || 'University Emergency';
+            } else if (incident.icd_category === 'Urgent') {
+                incidentType = 'Urgent Emergency';
+            } else {
+                incidentType = incident.icd_category + ' Emergency';
+            }
+
+            return `
+                <div style="width: 100%; background: white; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.1);">
+                    <!-- Emergency Alert System Header -->
+                    <div style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); padding: 2rem 2.5rem; color: white; position: relative; overflow: hidden; width: 100%; margin: 0; min-height: 120px; display: flex; align-items: center;">
+                        <div style="position: absolute; top: -50px; right: -50px; width: 200px; height: 200px; background: rgba(255,255,255,0.1); border-radius: 50%;"></div>
+                        <div style="position: absolute; bottom: -30px; left: -30px; width: 150px; height: 150px; background: rgba(255,255,255,0.05); border-radius: 50%;"></div>
+                        <div style="position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; width: 100%; padding-top: 1.5rem;">
+                            <!-- Left Section: Icon and Title -->
+                            <div style="display: flex; align-items: center; gap: 1.25rem;">
+                                <div style="width: 56px; height: 56px; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                    <i class="fas fa-eye" style="font-size: 1.75rem; color: white;"></i>
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 0.375rem;">
+                                    <h2 style="margin: 0; padding: 0; font-size: 1.75rem; font-weight: 700; letter-spacing: -0.5px; line-height: 1.2;">INCIDENT DETAILS</h2>
+                                    <p style="margin: 0; padding: 0; font-size: 0.9rem; opacity: 0.95; font-weight: 400; line-height: 0.5;">Emergency Alert System - Incident Report</p>
+                                </div>
+                            </div>
+                            <!-- Right Section: Badge -->
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <div style="padding: 0.625rem 1.25rem; background: rgba(255,255,255,0.15); border-radius: 8px; backdrop-filter: blur(10px); display: flex; align-items: center; gap: 0.5rem;">
+                                    <span style="font-size: 0.875rem; font-weight: 600; letter-spacing: 0.25px;">ID: ${escapeHtml(incident.icd_id || 'N/A')}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Main Content -->
+                    <div style="padding: 2.5rem; background: #f9fafb;">
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-bottom: 1.5rem;">
+                            
+                            <!-- Incident ID Field -->
+                            <div style="background: white; border-radius: 8px; padding: 1.25rem; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">
+                                    <i class="fas fa-hashtag" style="color: #ef4444;"></i>
+                                    Incident ID
+                                </label>
+                                <div style="padding: 0.875rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; color: #1f2937; font-weight: 600; font-size: 0.95rem;">${escapeHtml(incident.icd_id || 'N/A')}</div>
+                    </div>
+
+                            <!-- Status Field -->
+                            <div style="background: white; border-radius: 8px; padding: 1.25rem; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">
+                                    <i class="fas fa-info-circle" style="color: #ef4444;"></i>
+                                    Status
+                                </label>
+                                <div style="padding: 0.875rem; background: ${statusBg}; border: 1px solid ${statusColor}40; border-radius: 6px; color: ${statusColor}; font-weight: 700; font-size: 0.95rem; text-align: center;">${escapeHtml(status)}</div>
+                            </div>
+
+                            <!-- Category Field -->
+                            <div style="background: white; border-radius: 8px; padding: 1.25rem; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">
+                                    <i class="fas fa-tag" style="color: #ef4444;"></i>
+                                    Category
+                                </label>
+                                <div style="padding: 0.875rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; color: #1f2937; font-weight: 600; font-size: 0.95rem;">${escapeHtml(incident.icd_category || 'N/A')}</div>
+                            </div>
+
+                            <!-- Type Field -->
+                            <div style="background: white; border-radius: 8px; padding: 1.25rem; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">
+                                    <i class="fas fa-list-alt" style="color: #ef4444;"></i>
+                                    Type
+                                </label>
+                                <div style="padding: 0.875rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; color: #1f2937; font-weight: 600; font-size: 0.95rem;">${escapeHtml(incidentType)}</div>
+                            </div>
+
+                            <!-- Reported Time Field -->
+                            <div style="background: white; border-radius: 8px; padding: 1.25rem; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">
+                                    <i class="fas fa-clock" style="color: #ef4444;"></i>
+                                    Reported Time
+                                </label>
+                                <div style="padding: 0.875rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; color: #1f2937; font-weight: 600; font-size: 0.95rem;">${formatDisplayTimestamp(incident.icd_timestamp)}</div>
+                            </div>
+
+                            <!-- Pending Time Field -->
+                            ${incident.pending_timestamp ? `
+                            <div style="background: white; border-radius: 8px; padding: 1.25rem; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">
+                                    <i class="fas fa-hourglass-half" style="color: #ef4444;"></i>
+                                    Pending Time
+                                </label>
+                                <div style="padding: 0.875rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; color: #1f2937; font-weight: 600; font-size: 0.95rem;">${formatDisplayTimestamp(incident.pending_timestamp)}</div>
+                            </div>
+                            ` : ''}
+
+                            <!-- Resolved Time Field -->
+                            ${incident.resolved_timestamp ? `
+                            <div style="background: white; border-radius: 8px; padding: 1.25rem; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">
+                                    <i class="fas fa-check-circle" style="color: #ef4444;"></i>
+                                    Resolved Time
+                                </label>
+                                <div style="padding: 0.875rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; color: #1f2937; font-weight: 600; font-size: 0.95rem;">${formatDisplayTimestamp(incident.resolved_timestamp)}</div>
+                            </div>
+                            ` : ''}
+
+                            <!-- Location Section -->
+                            <div style="background: white; border-radius: 8px; padding: 1.25rem; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.05); grid-column: 1 / -1;">
+                                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">
+                                    <i class="fas fa-map-marker-alt" style="color: #ef4444;"></i>
+                                    Location
+                                </label>
+                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+                            <div>
+                                        <div style="font-size: 0.7rem; font-weight: 600; color: #9ca3af; margin-bottom: 0.5rem;">LATITUDE</div>
+                                        <div style="padding: 0.875rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; color: #1f2937; font-weight: 600; font-size: 0.95rem;">${Number(incident.icd_lat || 0).toFixed(6)}</div>
+                            </div>
+                                    <div>
+                                        <div style="font-size: 0.7rem; font-weight: 600; color: #9ca3af; margin-bottom: 0.5rem;">LONGITUDE</div>
+                                        <div style="padding: 0.875rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; color: #1f2937; font-weight: 600; font-size: 0.95rem;">${Number(incident.icd_lng || 0).toFixed(6)}</div>
+                        </div>
+                                    ${incident.icd_location_building || incident.icd_location_floor || incident.icd_location_room ? `
+                                    <div>
+                                        <div style="font-size: 0.7rem; font-weight: 600; color: #9ca3af; margin-bottom: 0.5rem;">BUILDING DETAILS</div>
+                                        <div style="padding: 0.875rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; color: #1f2937; font-weight: 500; font-size: 0.9rem; line-height: 1.5;">
+                                            ${incident.icd_location_building ? `<div><strong>Building:</strong> ${escapeHtml(incident.icd_location_building)}</div>` : ''}
+                                            ${incident.icd_location_floor ? `<div><strong>Floor:</strong> ${escapeHtml(incident.icd_location_floor)}</div>` : ''}
+                                            ${incident.icd_location_room ? `<div><strong>Room:</strong> ${escapeHtml(incident.icd_location_room)}</div>` : ''}
+                        </div>
+                    </div>
+                                    ` : ''}
+                        </div>
+                        </div>
+
+                            <!-- Description Field (Full Width) -->
+                            <div style="background: white; border-radius: 8px; padding: 1.25rem; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.05); grid-column: 1 / -1;">
+                                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">
+                                    <i class="fas fa-align-left" style="color: #ef4444;"></i>
+                                    Description
+                                </label>
+                                <div style="padding: 0.875rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; color: #1f2937; font-weight: 500; font-size: 0.95rem; min-height: 4rem; line-height: 1.6;">${escapeHtml(incident.icd_description || 'No description provided.')}</div>
+                    </div>
+                        </div>
+
+                        <!-- Student/Reporter Information Section -->
+                        ${incident.student_details ? `
+                        <div style="background: white; border-radius: 8px; padding: 1.5rem; border: 2px solid #fef2f2; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.1); margin-bottom: 1.5rem;">
+                            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem; padding-bottom: 1rem; border-bottom: 2px solid #fee2e2;">
+                                <div style="width: 45px; height: 45px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-user-graduate text-white" style="font-size: 1.25rem;"></i>
+                                </div>
+                                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #1f2937;">REPORTER INFORMATION</h3>
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem;">
+                                <div>
+                                    <label style="display: block; font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Full Name</label>
+                                    <div style="padding: 0.875rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; color: #1f2937; font-weight: 600; font-size: 0.95rem;">${escapeHtml(incident.student_details.full_name || 'N/A')}</div>
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Student ID</label>
+                                    <div style="padding: 0.875rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; color: #1f2937; font-weight: 600; font-size: 0.95rem;">${escapeHtml(incident.student_details.student_id || 'N/A')}</div>
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Contact Number</label>
+                                    <div style="padding: 0.875rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; color: #1f2937; font-weight: 600; font-size: 0.95rem;">${escapeHtml(incident.student_details.student_cnum || 'N/A')}</div>
+                                </div>
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function findStatusTimestamp(auditRecords, status) {
+            if (!Array.isArray(auditRecords)) return null;
+            const match = auditRecords.find(record => (record.new_status || '').toLowerCase() === status.toLowerCase());
+            return match ? (match.changed_at || match.created_at) : null;
+        }
+
+        function buildIncidentTimeline(incident, auditRecords) {
+            const normalizedStatus = (incident && incident.icd_status ? incident.icd_status : 'Unknown').toUpperCase();
+            const reportedTs = incident ? incident.icd_timestamp : null;
+            const pendingTs = findStatusTimestamp(auditRecords, 'Pending') || incident?.pending_timestamp || incident?.acknowledged_timestamp;
+            const resolvedTs = findStatusTimestamp(auditRecords, 'Resolved') || incident?.resolved_timestamp;
+            const cancelledTs = findStatusTimestamp(auditRecords, 'Cancelled') || incident?.cancelled_timestamp;
+
+            const steps = [
+                { label: 'Reported', ts: reportedTs, active: ['ACTIVE','PENDING','RESOLVED','CANCELLED'].includes(normalizedStatus) },
+                { label: 'Acknowledged', ts: pendingTs, active: ['PENDING','RESOLVED','CANCELLED'].includes(normalizedStatus) },
+                { label: 'In Progress', ts: pendingTs, active: ['PENDING','RESOLVED'].includes(normalizedStatus) },
+                { label: 'Resolved', ts: resolvedTs, active: normalizedStatus === 'RESOLVED' }
+            ];
+
+            if (normalizedStatus === 'CANCELLED' || cancelledTs) {
+                steps.push({
+                    label: 'Cancelled',
+                    ts: cancelledTs,
+                    active: normalizedStatus === 'CANCELLED'
+                });
+            }
+
+            const items = steps.map(step => `
+                <div class="timeline-item ${step.active ? 'active' : ''}">
+                    <span class="timeline-dot"></span>
+                    <div class="timeline-content">
+                        <span class="timeline-label">${step.label}</span>
+                        <span class="timeline-timestamp ${step.active ? 'text-gray-600' : 'text-gray-400'}">${formatDisplayTimestamp(step.ts)}</span>
+                    </div>
+                </div>
+            `).join('');
+
+            return `
+                <div class="timeline bg-white rounded-lg p-4">
+                    ${items}
+                </div>
+            `;
+        }
+
+        function buildAuditHistoryList(records) {
+            if (!records || !records.length) {
+                return `<p class="text-center text-gray-500 py-4">No audit history found for this incident.</p>`;
+            }
+
+            return `
+                <div class="space-y-3">
+                    ${records.map(record => `
+                        <div class="audit-card">
+                            <strong>${(record.action_type || 'Update').replace('_', ' ').toUpperCase()}</strong>
+                            <div class="audit-meta">
+                                <i class="fas fa-user-shield mr-1"></i>${record.changed_by_name || 'System'}
+                                <span class="mx-2">•</span>
+                                <i class="fas fa-clock mr-1"></i>${formatDisplayTimestamp(record.changed_at)}
+                            </div>
+                            <div class="text-sm text-gray-600">
+                                Status: <span class="font-semibold">${record.old_status || 'N/A'}</span> → <span class="font-semibold">${record.new_status || 'N/A'}</span>
+                            </div>
+                            ${record.change_reason ? `<div class="text-sm text-gray-500 italic">Reason: ${record.change_reason}</div>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // ==================== AUTO-REFRESH FUNCTIONALITY ====================
+        
+        function initializeAutoRefresh() {
+            // Start auto-refresh every 30 seconds
+            autoRefreshInterval = setInterval(refreshIncidents, 30000);
+        }
+        
+        function refreshIncidents() {
+            if (isRefreshing) return;
+            
+            isRefreshing = true;
+            showAutoRefreshIndicator();
+            
+            // Get current filter parameters
+            const statusFilter = document.getElementById('statusFilter').value;
+            const searchTerm = document.getElementById('searchInput').value;
+            const sortOrder = document.getElementById('sortFilter').value;
+            
+            // Build API URL
+            const apiUrl = `/api/incidents/refresh?status=${encodeURIComponent(statusFilter)}&search=${encodeURIComponent(searchTerm)}&sort=${encodeURIComponent(sortOrder)}`;
+            
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log(`Auto-refresh completed: ${data.total_count} incidents loaded`);
+                    } else {
+                        console.error('Auto-refresh failed:', data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Auto-refresh error:', error);
+                })
+                .finally(() => {
+                    isRefreshing = false;
+                    hideAutoRefreshIndicator();
+                });
+        }
+        
+        function showAutoRefreshIndicator() {
+            const indicator = document.getElementById('autoRefreshIndicator');
+            if (indicator) {
+                indicator.classList.add('show');
+            }
+        }
+        
+        function hideAutoRefreshIndicator() {
+            const indicator = document.getElementById('autoRefreshIndicator');
+            if (indicator) {
+                setTimeout(() => {
+                    indicator.classList.remove('show');
+                }, 2000);
+            }
+        }
+        
+        // ==================== BULK OPERATIONS ====================
+        
+        function toggleAllCheckboxes() {
+            const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+            const checkboxes = document.querySelectorAll('.incident-checkbox');
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = selectAllCheckbox.checked;
+            });
+            
+            updateBulkSelection();
+        }
+        
+        function updateBulkSelection() {
+            const selectedCheckboxes = document.querySelectorAll('.incident-checkbox:checked');
+            const count = selectedCheckboxes.length;
+            
+            document.getElementById('selectedCount').textContent = count;
+            
+            const toolbar = document.getElementById('bulkToolbar');
+            if (count > 0) {
+                toolbar.classList.add('show');
+            } else {
+                toolbar.classList.remove('show');
+            }
+        }
+        
+        function clearBulkSelection() {
+            document.querySelectorAll('.incident-checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            updateBulkSelection();
+        }
+        
+        function bulkStatusUpdate() {
+            const selectedIds = Array.from(document.querySelectorAll('.incident-checkbox:checked'))
+                .map(cb => cb.value);
+            
+            if (selectedIds.length === 0) {
+                Swal.fire('Error', 'Please select incidents to update.', 'error');
+                return;
+            }
+            
+            // Show status selection dialog
+            const statusOptions = ['Active', 'Pending', 'Resolved', 'Cancelled'];
+            
+            let statusHTML = '<select id="statusSelect" class="swal2-input" style="width: 100%;">';
+            statusOptions.forEach(status => {
+                statusHTML += `<option value="${status}">${status}</option>`;
+            });
+            statusHTML += '</select>';
+            
+            Swal.fire({
+                title: 'Update Status for Multiple Incidents',
+                html: `Are you sure you want to update the status of ${selectedIds.length} incident(s)?<br><br>${statusHTML}`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#3b82f6',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Update All',
+                cancelButtonText: 'Cancel',
+                preConfirm: () => {
+                    const newStatus = document.getElementById('statusSelect').value;
+                    return fetch('/api/incidents/bulk-action', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            action: 'status_update',
+                            incident_ids: selectedIds,
+                            new_status: newStatus
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire('Success', `${data.message}`, 'success');
+                            location.reload();
+                        } else {
+                            throw new Error(data.message);
+                        }
+                    })
+                    .catch(error => {
+                        Swal.fire('Error', error.message, 'error');
+                    });
+                }
+            });
+        }
+        
+        // ==================== INCIDENT ACTIONS ====================
+        
+        function viewAuditTrail(incidentId) {
+            const modal = document.getElementById('auditModal');
+            const timeline = document.getElementById('auditTimeline');
+            
+            modal.style.display = 'flex';
+            timeline.innerHTML = `
+                <div class="text-center py-10">
+                    <i class="fas fa-spinner fa-spin text-3xl text-blue-500 mb-3"></i>
+                    <p class="text-gray-600">Loading audit trail...</p>
+                </div>
+            `;
+            
+            Promise.all([
+                fetch(`/api/incident/${incidentId}/details`).then(response => response.json()),
+                fetch(`/api/incident/${incidentId}/audit`).then(response => response.json())
+            ])
+            .then(([incidentData, auditData]) => {
+                if (!incidentData.success) {
+                    throw new Error(incidentData.message || 'Unable to load incident details.');
+                }
+                if (!auditData.success) {
+                    throw new Error(auditData.error || 'Unable to load audit trail.');
+                }
+                
+                const incident = incidentData.incident;
+                const auditRecords = auditData.audit_records || [];
+                
+                timeline.innerHTML = `
+                    <div class="space-y-6">
+                        <div>
+                            <h4 class="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                                <i class="fas fa-route text-slate-600"></i>Track Status
+                            </h4>
+                            ${buildIncidentTimeline(incident, auditRecords)}
+                        </div>
+                        <div>
+                            <h4 class="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                                <i class="fas fa-history text-purple-600"></i>Audit History
+                            </h4>
+                            ${buildAuditHistoryList(auditRecords)}
+                        </div>
+                    </div>
+                `;
+            })
+            .catch(error => {
+                timeline.innerHTML = `
+                    <div class="text-center py-10">
+                        <i class="fas fa-exclamation-triangle text-3xl text-red-500 mb-3"></i>
+                        <p class="text-gray-600">Error loading audit trail: ${error.message}</p>
+                    </div>
+                `;
+            });
+        }
+        
+        function closeAuditModal() {
+            document.getElementById('auditModal').style.display = 'none';
+        }
+        
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('filterForm').submit();
+        }
+        
+        function clearDateFilters() {
+            const startDateFilter = document.getElementById('startDateFilter');
+            const endDateFilter = document.getElementById('endDateFilter');
+            if (startDateFilter) startDateFilter.value = '';
+            if (endDateFilter) endDateFilter.value = '';
+            document.getElementById('filterForm').submit();
+        }
+        
+        // Ensure form preserves all filter values when submitting
+        document.getElementById('filterForm').addEventListener('submit', function(e) {
+            // All values are already in the form, so no need to prevent default
+            // This ensures all filters are preserved
+        });
+        
+        function viewStudent(studentId) {
+            if (!studentId) {
+                Swal.fire('No Student', 'No student information is available for this record.', 'info');
+                return;
+            }
+            
+            Swal.fire({
+                title: 'Loading student information...',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
+            
+            fetch(`/api/student/${studentId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        throw new Error(data.error || data.message || 'Unable to load student details.');
+                    }
+                    
+                    Swal.fire({
+                        title: '',
+                        html: buildStudentInfoHTML(data.student),
+                        width: '95%',
+                        maxWidth: '1400px',
+                        showConfirmButton: true,
+                        confirmButtonText: '<i class="fas fa-check mr-2"></i>Close',
+                        confirmButtonColor: '#dc2626',
+                        customClass: {
+                            popup: 'student-info-popup',
+                            confirmButton: 'swal2-confirm-student',
+                            container: 'student-info-container'
+                        },
+                        padding: '0',
+                        showCloseButton: false,
+                        allowOutsideClick: true,
+                        backdrop: 'rgba(0, 0, 0, 0.6)'
+                    });
+                })
+                .catch(error => {
+                    Swal.fire('Error', error.message || 'Failed to load student details.', 'error');
+                });
+        }
+        
+        function viewIncident(incidentId) {
+            if (!incidentId) return;
+            
+            Swal.fire({
+                title: 'Loading incident...',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
+            
+            fetch(`/api/incident/${incidentId}/details`)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        throw new Error(data.message || 'Failed to load incident details');
+                    }
+                    
+                    Swal.fire({
+                        title: '',
+                        html: buildIncidentDetailsHTML(data.incident),
+                        width: '95%',
+                        maxWidth: '1400px',
+                        showConfirmButton: true,
+                        confirmButtonText: '<i class="fas fa-check mr-2"></i>Close',
+                        confirmButtonColor: '#dc2626',
+                        customClass: {
+                            popup: 'incident-info-popup',
+                            confirmButton: 'swal2-confirm-incident',
+                            container: 'incident-info-container'
+                        },
+                        padding: '0',
+                        showCloseButton: false,
+                        allowOutsideClick: true,
+                        backdrop: 'rgba(0, 0, 0, 0.6)'
+                    });
+                })
+                .catch(error => {
+                    Swal.fire('Error', error.message || 'Failed to load incident details.', 'error');
+                });
+        }
+        
+        function printIncidentPDF(incidentId) {
+            if (!incidentId) return;
+            
+            // Show dialog to choose report type
+            Swal.fire({
+                title: '<div style="font-size: 1.5rem; font-weight: 700; color: #1f2937;">Export Incident Report</div>',
+                html: `
+                    <div style="text-align: left; padding: 10px;">
+                        <label style="display: block; margin-bottom: 12px; font-weight: 600; color: #374151; font-size: 14px;">
+                            <i class="fas fa-file-alt mr-2"></i>Report Type:
+                        </label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <label style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.2s; background: #f9fafb; min-height: 100px;" 
+                                   onmouseover="this.style.borderColor='#10b981'; this.style.background='#f0fdf4';" 
+                                   onmouseout="this.style.borderColor='#e5e7eb'; this.style.background='#f9fafb';">
+                                <input type="radio" name="reportType" value="report" checked style="margin-bottom: 10px; cursor: pointer;">
+                                <i class="fas fa-file-pdf" style="color: #dc2626; font-size: 24px; margin-bottom: 8px;"></i>
+                                <span style="font-weight: 500; text-align: center;">Just Report</span>
+                                <span style="font-size: 11px; color: #6b7280; margin-top: 4px; text-align: center;">Standard incident report</span>
+                            </label>
+                            <label style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.2s; background: #f9fafb; min-height: 100px;" 
+                                   onmouseover="this.style.borderColor='#10b981'; this.style.background='#f0fdf4';" 
+                                   onmouseout="this.style.borderColor='#e5e7eb'; this.style.background='#f9fafb';">
+                                <input type="radio" name="reportType" value="resolved" style="margin-bottom: 10px; cursor: pointer;">
+                                <i class="fas fa-check-circle" style="color: #059669; font-size: 24px; margin-bottom: 8px;"></i>
+                                <span style="font-weight: 500; text-align: center;">Resolved Report</span>
+                                <span style="font-size: 11px; color: #6b7280; margin-top: 4px; text-align: center;">Include resolution summary</span>
+                            </label>
+                        </div>
+                    </div>
+                `,
+                icon: null,
+                showCancelButton: true,
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: '<i class="fas fa-download mr-2"></i>Export',
+                cancelButtonText: 'Cancel',
+                width: '500px',
+                preConfirm: () => {
+                    const reportType = document.querySelector('input[name="reportType"]:checked')?.value || 'report';
+                    return { reportType: reportType };
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const reportType = result.value.reportType;
+                    
+                    if (reportType === 'resolved') {
+                        // For resolved report, check if incident is resolved and show resolution bundle
+                        // For now, just open the regular PDF (which includes resolution if available)
+                        const pdfUrl = `/incident/${incidentId}/export-pdf`;
+                        window.open(pdfUrl, '_blank');
+                    } else {
+                        // Just report - regular incident PDF
+                        const pdfUrl = `/incident/${incidentId}/export-pdf`;
+                        window.open(pdfUrl, '_blank');
+                    }
+                }
+            });
+        }
+        
+        function closeModal() {
+            document.getElementById('studentModal').style.display = 'none';
+            const url = new URL(window.location.href);
+            url.searchParams.delete('view_student');
+            window.history.replaceState({}, '', url);
+        }
+        
+        function archiveIncidentPrompt(incidentId) {
+            Swal.fire({
+                title: 'Archive Incident',
+                html: `
+                    <div style="text-align: left;">
+                        <p style="margin-bottom: 10px; color: #6b7280;">Are you sure you want to archive this incident?</p>
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #374151;">Archive reason (optional):</label>
+                        <textarea id="archiveReason" 
+                                  placeholder="Provide additional context for archiving..." 
+                                  style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; min-height: 80px; resize: vertical;"
+                                  maxlength="500"></textarea>
+                        <p style="font-size: 11px; color: #9ca3af; margin-top: 5px;">Maximum 500 characters</p>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonColor: '#f97316',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Archive Incident',
+                cancelButtonText: 'Cancel',
+                width: '500px',
+                preConfirm: () => {
+                    const reasonInput = document.getElementById('archiveReason');
+                    const reason = reasonInput ? reasonInput.value.trim() : '';
+                    
+                    if (reason && reason.length > 500) {
+                        Swal.showValidationMessage('Reason must be 500 characters or fewer.');
+                        return false;
+                    }
+                    
+                    return reason || 'Archived via incident management';
+                },
+                didOpen: () => {
+                    const reasonInput = document.getElementById('archiveReason');
+                    if (reasonInput) {
+                        reasonInput.focus();
+                    }
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const reason = result.value;
+                    
+                    // Show loading
+                    Swal.fire({
+                        title: 'Archiving...',
+                        text: 'Please wait while we archive the incident.',
+                        allowOutsideClick: false,
+                        didOpen: () => Swal.showLoading()
+                    });
+                    
+                    // Call API to archive
+                    fetch(`/api/incident/${incidentId}/archive`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            reason: reason
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                title: 'Success!',
+                                text: data.message || 'Incident has been archived successfully.',
+                                icon: 'success',
+                                timer: 2000,
+                                showConfirmButton: false
+                            }).then(() => {
+                                // Reload the page to update the table
+                                location.reload();
+                            });
+                        } else {
+                            throw new Error(data.message || 'Failed to archive incident');
+                        }
+                    })
+                    .catch(error => {
+                        Swal.fire({
+                            title: 'Error',
+                            text: error.message || 'Failed to archive incident. Please try again.',
+                            icon: 'error',
+                            confirmButtonText: 'OK'
+                        });
+                    });
+                }
+            });
+        }
+        
+        function handleStatusUpdate(form) {
+            const statusSelect = form.querySelector('select[name="status"]');
+            const newStatus = statusSelect.value;
+            const currentStatus = statusSelect.dataset.currentStatus;
+            
+            if (newStatus !== currentStatus) {
+                let message = `Are you sure you want to change the status to "${newStatus}"?`;
+                let additionalInfo = '';
+                
+                if (newStatus === 'Resolved') {
+                    additionalInfo = 'This incident will be marked as resolved.';
+                } else if (newStatus === 'Pending') {
+                    additionalInfo = 'This incident will be marked as pending review.';
+                } else if (newStatus === 'Cancelled') {
+                    additionalInfo = 'This incident will be marked as cancelled and closed.';
+                } else if (newStatus === 'Active') {
+                    additionalInfo = 'This incident will be marked as active and will trigger immediate alerts.';
+                }
+                
+                Swal.fire({
+                    title: 'Confirm Status Change',
+                    html: `${message}<br><br><small class="text-gray-600">${additionalInfo}</small>`,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3b82f6',
+                    cancelButtonColor: '#dc2626',
+                    confirmButtonText: 'Yes, change it!',
+                    cancelButtonText: 'Cancel'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        form.submit();
+                    } else {
+                        statusSelect.value = currentStatus;
+                    }
+                });
+                
+                return false; // Prevent default form submission
+            }
+            
+            return true;
+        }
+        
+        // Auto-hide flash messages
+        setTimeout(() => {
+            // Hide all flash messages by finding all elements with IDs starting with 'flashMessage'
+            const flashMessages = document.querySelectorAll('[id^="flashMessage"]');
+            flashMessages.forEach(msg => {
+                if (msg) msg.style.display = 'none';
+            });
+        }, 5000);
+        
+        // Close mobile nav when clicking outside
+        document.addEventListener('click', function(event) {
+            const mobileNav = document.getElementById('mobileNav');
+            const hamburgerBtn = document.getElementById('hamburgerBtn');
+            
+            if (mobileNav && mobileNav.classList.contains('show')) {
+                if (!mobileNav.contains(event.target) && event.target !== hamburgerBtn && hamburgerBtn && !hamburgerBtn.contains(event.target)) {
+                    toggleMobileNav();
+                }
+            }
+        });
+        
+        // Close modal when clicking outside
+        window.addEventListener('click', function(event) {
+            const studentModal = document.getElementById('studentModal');
+            const auditModal = document.getElementById('auditModal');
+            
+            if (event.target === studentModal) {
+                closeModal();
+            }
+            
+            if (event.target === auditModal) {
+                closeAuditModal();
+            }
+        });
+        
+        // Handle escape key for modals
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                const studentModal = document.getElementById('studentModal');
+                const auditModal = document.getElementById('auditModal');
+                
+                if (studentModal && studentModal.style.display === 'block') {
+                    closeModal();
+                }
+                
+                if (auditModal && (auditModal.style.display === 'flex' || auditModal.style.display === 'block')) {
+                    closeAuditModal();
+                }
+            }
+        });
+        
+        // Function to highlight alert notifications when alerts button is clicked
+        function highlightAlertNotifications() {
+            const alertSection = document.getElementById('alertNotificationsSection');
+            const liveMapSection = document.getElementById('liveMapSection');
+            
+            // Highlight alert notifications section if it exists
+            if (alertSection) {
+                // Scroll to the alert notifications section
+                alertSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                
+                // Add highlight animation
+                alertSection.style.transition = 'all 0.3s ease';
+                alertSection.style.border = '3px solid #ef4444';
+                alertSection.style.boxShadow = '0 0 20px rgba(239, 68, 68, 0.5)';
+                alertSection.style.backgroundColor = '#fef2f2';
+                
+                // Remove highlight after 3 seconds
+                setTimeout(() => {
+                    alertSection.style.border = '';
+                    alertSection.style.boxShadow = '';
+                    alertSection.style.backgroundColor = '';
+                }, 3000);
+                
+                // Also highlight the first alert card if available
+                const firstAlert = document.querySelector('.emergency-card');
+                if (firstAlert) {
+                    firstAlert.style.transition = 'all 0.3s ease';
+                    firstAlert.style.border = '2px solid #ef4444';
+                    firstAlert.style.boxShadow = '0 0 15px rgba(239, 68, 68, 0.4)';
+                    setTimeout(() => {
+                        firstAlert.style.border = '';
+                        firstAlert.style.boxShadow = '';
+                    }, 3000);
+                }
+            }
+            
+            // Highlight live map section if it exists
+            if (liveMapSection) {
+                // Scroll to the live map section (with a slight delay to show both highlights)
+                setTimeout(() => {
+                    liveMapSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 500);
+                
+                // Add highlight animation
+                liveMapSection.style.transition = 'all 0.3s ease';
+                liveMapSection.style.border = '3px solid #ef4444';
+                liveMapSection.style.boxShadow = '0 0 20px rgba(239, 68, 68, 0.5)';
+                liveMapSection.style.backgroundColor = '#fef2f2';
+                
+                // Also highlight the map container
+                const mapContainer = document.getElementById('map-container');
+                if (mapContainer) {
+                    mapContainer.style.transition = 'all 0.3s ease';
+                    mapContainer.style.border = '2px solid #ef4444';
+                    mapContainer.style.boxShadow = '0 0 15px rgba(239, 68, 68, 0.4)';
+                }
+                
+                // Remove highlight after 3 seconds
+                setTimeout(() => {
+                    liveMapSection.style.border = '';
+                    liveMapSection.style.boxShadow = '';
+                    liveMapSection.style.backgroundColor = '';
+                    if (mapContainer) {
+                        mapContainer.style.border = '';
+                        mapContainer.style.boxShadow = '';
+                    }
+                }, 3000);
+            }
+            
+            // If neither section exists, show loading screen and redirect to dashboard
+            if (!alertSection && !liveMapSection) {
+                // Show loading screen
+                const loadingScreen = document.getElementById('loadingScreen');
+                if (loadingScreen) {
+                    loadingScreen.classList.add('show');
+                }
+                
+                // Redirect to dashboard after a brief delay
+                setTimeout(() => {
+                    window.location.href = '{{ url_for("dashboard") }}';
+                }, 500);
+            }
+        }
+        
+        function showAlertsTooltip(button) {
+            const tooltip = document.getElementById('alertsTooltip');
+            if (tooltip) {
+                tooltip.classList.add('show');
+            }
+        }
+        
+        function hideAlertsTooltip(button) {
+            const tooltip = document.getElementById('alertsTooltip');
+            if (tooltip) {
+                tooltip.classList.remove('show');
+            }
+        }
+        
+        // ==================== EXPORT FUNCTIONALITY ====================
+        
+        function exportIncidents() {
+            // Get current filter values
+            const statusFilter = document.getElementById('statusFilter').value;
+            const categoryFilter = document.getElementById('categoryFilter') ? document.getElementById('categoryFilter').value : 'All';
+            const searchTerm = document.getElementById('searchInput').value;
+            const sortOrder = document.getElementById('sortFilter').value;
+            const startDate = document.getElementById('startDateFilter') ? document.getElementById('startDateFilter').value : '';
+            const endDate = document.getElementById('endDateFilter') ? document.getElementById('endDateFilter').value : '';
+            
+            // Get today's date for default end date
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            
+            // Get date 30 days ago for default start date
+            const thirtyDaysAgo = new Date(today);
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            const startDateStr = thirtyDaysAgo.toISOString().split('T')[0];
+            
+            Swal.fire({
+                title: '<div style="font-size: 1.5rem; font-weight: 700; color: #1f2937;">Export Incidents</div>',
+                html: `
+                    <div style="text-align: left; padding: 15px;">
+                        <!-- Export Format Selection -->
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151; font-size: 14px;">
+                                <i class="fas fa-file-export mr-2"></i>Export Format:
+                            </label>
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                                <label style="display: flex; align-items: center; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.2s; background: #f9fafb;" 
+                                       onmouseover="this.style.borderColor='#10b981'; this.style.background='#f0fdf4';" 
+                                       onmouseout="this.style.borderColor='#e5e7eb'; this.style.background='#f9fafb';">
+                                    <input type="radio" name="exportFormat" value="pdf" checked style="margin-right: 8px; cursor: pointer;">
+                                    <i class="fas fa-file-pdf" style="color: #dc2626; margin-right: 6px;"></i>
+                                    <span style="font-weight: 500;">PDF</span>
+                                </label>
+                                <label style="display: flex; align-items: center; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.2s; background: #f9fafb;" 
+                                       onmouseover="this.style.borderColor='#10b981'; this.style.background='#f0fdf4';" 
+                                       onmouseout="this.style.borderColor='#e5e7eb'; this.style.background='#f9fafb';">
+                                    <input type="radio" name="exportFormat" value="excel" style="margin-right: 8px; cursor: pointer;">
+                                    <i class="fas fa-file-excel" style="color: #059669; margin-right: 6px;"></i>
+                                    <span style="font-weight: 500;">Excel</span>
+                                </label>
+                                <label style="display: flex; align-items: center; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.2s; background: #f9fafb;" 
+                                       onmouseover="this.style.borderColor='#10b981'; this.style.background='#f0fdf4';" 
+                                       onmouseout="this.style.borderColor='#e5e7eb'; this.style.background='#f9fafb';">
+                                    <input type="radio" name="exportFormat" value="print" style="margin-right: 8px; cursor: pointer;">
+                                    <i class="fas fa-print" style="color: #3b82f6; margin-right: 6px;"></i>
+                                    <span style="font-weight: 500;">Print</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Report Type Section -->
+                        <div style="margin-bottom: 20px; padding: 15px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+                            <label style="display: block; margin-bottom: 12px; font-weight: 600; color: #374151; font-size: 14px;">
+                                <i class="fas fa-file-alt mr-2"></i>Report Type:
+                            </label>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                <label style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 16px; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.2s; background: #f9fafb; min-height: 90px;" 
+                                       onmouseover="this.style.borderColor='#10b981'; this.style.background='#f0fdf4';" 
+                                       onmouseout="this.style.borderColor='#e5e7eb'; this.style.background='#f9fafb';">
+                                    <input type="radio" name="exportReportType" value="report" checked style="margin-bottom: 8px; cursor: pointer;">
+                                    <i class="fas fa-file-pdf" style="color: #dc2626; font-size: 20px; margin-bottom: 6px;"></i>
+                                    <span style="font-weight: 500; text-align: center; font-size: 13px;">Just Report</span>
+                                    <span style="font-size: 10px; color: #6b7280; margin-top: 4px; text-align: center;">Standard incidents</span>
+                                </label>
+                                <label style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 16px; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.2s; background: #f9fafb; min-height: 90px;" 
+                                       onmouseover="this.style.borderColor='#10b981'; this.style.background='#f0fdf4';" 
+                                       onmouseout="this.style.borderColor='#e5e7eb'; this.style.background='#f9fafb';">
+                                    <input type="radio" name="exportReportType" value="resolved" style="margin-bottom: 8px; cursor: pointer;">
+                                    <i class="fas fa-check-circle" style="color: #059669; font-size: 20px; margin-bottom: 6px;"></i>
+                                    <span style="font-weight: 500; text-align: center; font-size: 13px;">Resolved Report</span>
+                                    <span style="font-size: 10px; color: #6b7280; margin-top: 4px; text-align: center;">Resolution summaries</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Filters Section -->
+                        <div style="margin-bottom: 20px; padding: 15px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+                            <label style="display: block; margin-bottom: 12px; font-weight: 600; color: #374151; font-size: 14px;">
+                                <i class="fas fa-filter mr-2"></i>Filters:
+                            </label>
+                            
+                            <!-- Status Filter -->
+                            <div style="margin-bottom: 12px;">
+                                <label style="display: block; margin-bottom: 5px; font-size: 12px; color: #6b7280; font-weight: 500;">Status:</label>
+                                <select id="exportStatusFilter" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; background: white;">
+                                    <option value="All" ${statusFilter === 'All' ? 'selected' : ''}>All Status</option>
+                                    <option value="Active" ${statusFilter === 'Active' ? 'selected' : ''}>Active</option>
+                                    <option value="Pending" ${statusFilter === 'Pending' ? 'selected' : ''}>Pending</option>
+                                    <option value="Resolved" ${statusFilter === 'Resolved' ? 'selected' : ''}>Resolved</option>
+                                    <option value="Cancelled" ${statusFilter === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Category Filter -->
+                            <div style="margin-bottom: 12px;">
+                                <label style="display: block; margin-bottom: 5px; font-size: 12px; color: #6b7280; font-weight: 500;">Category:</label>
+                                <select id="exportCategoryFilter" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; background: white;">
+                                    <option value="All" ${categoryFilter === 'All' ? 'selected' : ''}>All Categories</option>
+                                    <option value="Medical" ${categoryFilter === 'Medical' ? 'selected' : ''}>Medical</option>
+                                    <option value="Security" ${categoryFilter === 'Security' ? 'selected' : ''}>Security</option>
+                                    <option value="University" ${categoryFilter === 'University' ? 'selected' : ''}>University</option>
+                                    <option value="Urgent" ${categoryFilter === 'Urgent' ? 'selected' : ''}>Urgent</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Search Filter -->
+                            <div style="margin-bottom: 12px;">
+                                <label style="display: block; margin-bottom: 5px; font-size: 12px; color: #6b7280; font-weight: 500;">Search:</label>
+                                <input type="text" id="exportSearchTerm" value="${searchTerm || ''}" 
+                                       placeholder="Search by incident ID, student name, or reporter..." 
+                                       style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;">
+                            </div>
+                            
+                            <!-- Sort Filter -->
+                            <div style="margin-bottom: 12px;">
+                                <label style="display: block; margin-bottom: 5px; font-size: 12px; color: #6b7280; font-weight: 500;">Sort Order:</label>
+                                <select id="exportSortOrder" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; background: white;">
+                                    <option value="recent" ${sortOrder === 'recent' ? 'selected' : ''}>Most Recent First</option>
+                                    <option value="old" ${sortOrder === 'old' ? 'selected' : ''}>Oldest First</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Date Range -->
+                            <div>
+                                <label style="display: block; margin-bottom: 8px; font-size: 12px; color: #6b7280; font-weight: 500;">Date Range:</label>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                <div>
+                                        <label style="display: block; font-size: 11px; color: #9ca3af; margin-bottom: 3px;">Start Date</label>
+                                    <input type="date" id="exportStartDate" value="${startDate || startDateStr}" 
+                                           style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;">
+                                </div>
+                                <div>
+                                        <label style="display: block; font-size: 11px; color: #9ca3af; margin-bottom: 3px;">End Date</label>
+                                    <input type="date" id="exportEndDate" value="${endDate || todayStr}" 
+                                           style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;">
+                                </div>
+                            </div>
+                        </div>
+                            </div>
+                        
+                        <p style="font-size: 11px; color: #6b7280; margin-top: 10px; padding: 10px; background: #eff6ff; border-radius: 6px; border-left: 3px solid #3b82f6;">
+                            <i class="fas fa-info-circle" style="color: #3b82f6;"></i> 
+                            <strong>Note:</strong> PDF and Print will open in a new tab. Excel will download automatically. Resolved reports are only available for PDF/Print format.
+                        </p>
+                    </div>
+                `,
+                icon: null,
+                showCancelButton: true,
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: '<i class="fas fa-download mr-2"></i>Export',
+                cancelButtonText: 'Cancel',
+                width: '600px',
+                customClass: {
+                    popup: 'export-popup'
+                },
+                preConfirm: () => {
+                    const exportFormat = document.querySelector('input[name="exportFormat"]:checked')?.value || 'pdf';
+                    const reportType = document.querySelector('input[name="exportReportType"]:checked')?.value || 'report';
+                    const status = document.getElementById('exportStatusFilter').value;
+                    const category = document.getElementById('exportCategoryFilter').value;
+                    const search = document.getElementById('exportSearchTerm').value;
+                    const sort = document.getElementById('exportSortOrder').value;
+                    const startDate = document.getElementById('exportStartDate').value;
+                    const endDate = document.getElementById('exportEndDate').value;
+                    
+                    if (startDate && endDate && startDate > endDate) {
+                        Swal.showValidationMessage('Start date must be before end date');
+                        return false;
+                    }
+                    
+                    return {
+                        format: exportFormat,
+                        reportType: reportType,
+                        status: status,
+                        category: category,
+                        search: search,
+                        sort: sort,
+                        startDate: startDate || '',
+                        endDate: endDate || ''
+                    };
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const { format, reportType, status, category, search, sort, startDate, endDate } = result.value;
+                    
+                    // Build URL with filters
+                    const params = new URLSearchParams();
+                    params.append('status', status);
+                    if (category && category !== 'All') params.append('category', category);
+                    if (search) params.append('search', search);
+                    params.append('sort', sort);
+                    if (startDate) params.append('start_date', startDate);
+                    if (endDate) params.append('end_date', endDate);
+                    
+                    if (format === 'pdf' || format === 'print') {
+                        // Determine which export URL to use based on report type
+                        let exportUrl;
+                        if (reportType === 'resolved') {
+                            // Use resolution bundle export
+                            exportUrl = `/incidents/resolution-bundle?${params.toString()}`;
+                        } else {
+                            // Use regular incidents export
+                            exportUrl = `/incidents/export-pdf?${params.toString()}`;
+                        }
+                        window.open(exportUrl, '_blank');
+                    
+                        if (format === 'print') {
+                            // Wait a bit then trigger print
+                            setTimeout(() => {
+                                Swal.fire({
+                                    title: 'Ready to Print',
+                                    text: 'The print dialog should open automatically. If not, use Ctrl+P or Cmd+P.',
+                                    icon: 'info',
+                                    timer: 3000,
+                                    showConfirmButton: false
+                                });
+                            }, 1000);
+                        } else {
+                    Swal.fire({
+                        title: 'Opening Export...',
+                        text: 'The export page is opening in a new tab. Use the print button to save as PDF.',
+                        icon: 'success',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                }
+                    } else if (format === 'excel') {
+                        // Export to Excel via API
+                        Swal.fire({
+                            title: 'Exporting to Excel...',
+                            allowOutsideClick: false,
+                            didOpen: () => Swal.showLoading()
+                        });
+                        
+                        fetch('/api/incidents/export-excel', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                status: status,
+                                category: category,
+                                search: search,
+                                sort: sort,
+                                start_date: startDate,
+                                end_date: endDate
+                            })
+                        })
+                        .then(response => {
+                            // Check if response is JSON (error) or blob (success)
+                            const contentType = response.headers.get('content-type');
+                            if (contentType && contentType.includes('application/json')) {
+                                return response.json().then(data => {
+                                    throw new Error(data.error || data.message || 'Export failed');
+                                });
+                            }
+                            if (response.ok) {
+                                return response.blob();
+                            }
+                            throw new Error(`Export failed with status: ${response.status}`);
+                        })
+                        .then(blob => {
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `incidents_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                            document.body.removeChild(a);
+                            
+                            Swal.fire({
+                                title: 'Success!',
+                                text: 'Excel file downloaded successfully.',
+                                icon: 'success',
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+                        })
+                        .catch(error => {
+                            console.error('Export error:', error);
+                            Swal.fire({
+                                title: 'Export Failed',
+                                html: `<div style="text-align: left;">
+                                    <p style="margin-bottom: 10px; color: #6b7280;">${error.message || 'Failed to export to Excel. Please try again.'}</p>
+                                    <p style="font-size: 12px; color: #9ca3af; margin-top: 10px;">
+                                        <i class="fas fa-info-circle"></i> 
+                                        If this problem persists, please check:
+                                    </p>
+                                    <ul style="font-size: 12px; color: #9ca3af; margin-left: 20px; margin-top: 5px;">
+                                        <li>Your internet connection</li>
+                                        <li>That you have incidents matching your filters</li>
+                                        <li>Contact your system administrator if the issue continues</li>
+                                    </ul>
+                                </div>`,
+                                icon: 'error',
+                                confirmButtonColor: '#dc2626',
+                                confirmButtonText: 'OK'
+                            });
+                        });
+                    }
+                }
+            });
+        }
+        
+        // ==================== ARCHIVED INCIDENTS FUNCTIONALITY ====================
+        
+        async function loadArchivedCount() {
+            try {
+                const response = await fetch('/api/archived-incidents');
+                const result = await response.json();
+                if (result.success && result.archived_incidents) {
+                    const archivedCount = result.archived_incidents.length || 0;
+                    
+                    // Update badge count
+                    const archivedCountBadge = document.getElementById('archivedCountBadge');
+                    if (archivedCountBadge) {
+                        archivedCountBadge.textContent = archivedCount;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading archived count:', error);
+            }
+        }
+        
+        function viewArchivedIncidents() {
+            Swal.fire({
+                title: 'Loading archived incidents...',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
+            
+            fetch('/api/archived-incidents')
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        throw new Error(data.message || 'Failed to load archived incidents');
+                    }
+                    
+                    const archivedIncidents = data.archived_incidents || [];
+                    
+                    if (archivedIncidents.length === 0) {
+                        Swal.fire({
+                            title: 'No Archived Incidents',
+                            text: 'There are no archived incidents to display.',
+                            icon: 'info'
+                        });
+                        return;
+                    }
+                    
+                    // Build HTML for archived incidents
+                    let html = `
+                        <div class="swal-section" style="max-height: 60vh; overflow-y: auto;">
+                            <div class="space-y-3">
+                                ${archivedIncidents.map(incident => `
+                                    <div class="audit-card" style="position: relative;">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <strong>Incident ID: ${incident.icd_id || 'N/A'}</strong>
+                                            <span class="status-chip ${(incident.icd_status || 'Unknown').toLowerCase()}">
+                                                ${incident.icd_status || 'Unknown'}
+                                            </span>
+                                        </div>
+                                        <div class="audit-meta">
+                                            <i class="fas fa-calendar mr-1"></i>
+                                            Archived: ${formatDisplayTimestamp(incident.archived_at)}
+                                        </div>
+                                        ${incident.archive_reason ? `
+                                            <div class="text-sm text-gray-600 mt-2">
+                                                <strong>Reason:</strong> ${incident.archive_reason}
+                                            </div>
+                                        ` : ''}
+                                        ${incident.icd_description ? `
+                                            <div class="text-sm text-gray-500 mt-2">
+                                                ${incident.icd_description.substring(0, 100)}${incident.icd_description.length > 100 ? '...' : ''}
+                                            </div>
+                                        ` : ''}
+                                        <button 
+                                            onclick="restoreArchivedIncident('${incident.archive_id}', '${incident.icd_id}')" 
+                                            class="mt-2 bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm transition-colors">
+                                            <i class="fas fa-undo mr-1"></i>Restore
+                                        </button>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                    
+                    Swal.fire({
+                        title: 'Archived Incidents',
+                        html: html,
+                        width: '800px',
+                        showConfirmButton: true,
+                        confirmButtonText: 'Close',
+                        confirmButtonColor: '#6b7280'
+                    });
+                })
+                .catch(error => {
+                    Swal.fire('Error', error.message || 'Failed to load archived incidents', 'error');
+                });
+        }
+        
+        function restoreArchivedIncident(archiveId, incidentId) {
+            Swal.fire({
+                title: 'Restore Incident?',
+                html: `Are you sure you want to restore Incident <strong>${incidentId}</strong>?<br><br>This will move it back to the active incidents list.`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Yes, restore it!',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({ 
+                        title: 'Restoring...',
+                        allowOutsideClick: false,
+                        didOpen: () => Swal.showLoading()
+                    });
+                    
+                    fetch(`/api/archive/${archiveId}/restore`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                title: 'Success!',
+                                text: data.message || 'Incident restored successfully',
+                                icon: 'success',
+                                timer: 2000,
+                                showConfirmButton: false
+                            }).then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            throw new Error(data.message || 'Failed to restore incident');
+                        }
+                    })
+                    .catch(error => {
+                        Swal.fire('Error', error.message || 'Failed to restore incident', 'error');
+                    });
+                }
+            });
+        }
+    </script>
+</body>
+</html>

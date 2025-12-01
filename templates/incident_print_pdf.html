@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incident Report - {{ incident.icd_id }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Georgia', 'Times New Roman', serif;
+            background: white;
+            color: #000000;
+            padding: 20px;
+            font-size: 11pt;
+            line-height: 1.4;
+        }
+        
+        @media print {
+            @page {
+                size: A4;
+                margin: 0.5in;
+            }
+            body {
+                margin: 0;
+                padding: 0;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+        
+        .form-field {
+            border-bottom: 1px solid #000;
+            min-height: 24px;
+            padding: 2px 0;
+            color: #000;
+        }
+        
+        .section-header {
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+        }
+        
+        .header-logos {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+            margin-bottom: 20px;
+        }
+        
+        .header-logo {
+            width: 80px;
+            height: 80px;
+            object-fit: contain;
+        }
+        
+        .header-title {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .header-title h1 {
+            font-size: 28pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: #000;
+            margin-bottom: 8px;
+        }
+        
+        .header-title .subtitle {
+            font-size: 12pt;
+            color: #333;
+        }
+        
+        .header-divider {
+            border-top: 3px double #000;
+            border-bottom: 3px double #000;
+            padding: 12px 0;
+            margin: 0 auto;
+            max-width: 600px;
+        }
+        
+        .content-wrapper {
+            max-width: 8.5in;
+            margin: 0 auto;
+        }
+        
+        .section {
+            margin-bottom: 24px;
+        }
+        
+        .section h2 {
+            font-size: 16pt;
+            font-weight: bold;
+            margin-bottom: 12px;
+            padding-bottom: 6px;
+            border-bottom: 2px solid #000;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #000;
+        }
+        
+        .section h3 {
+            font-size: 12pt;
+            font-weight: bold;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #000;
+        }
+        
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        
+        .field-group {
+            margin-bottom: 12px;
+        }
+        
+        .field-label {
+            display: block;
+            font-size: 10pt;
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: #000;
+        }
+        
+        .description-box {
+            border: 2px solid #000;
+            padding: 16px;
+            min-height: 150px;
+            background-color: #fff;
+            color: #000;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 3px double #000;
+        }
+        
+        .footer-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+        
+        .footer-note {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 9pt;
+            color: #666;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="content-wrapper">
+        <!-- Print Button -->
+        <div class="no-print mb-6" style="text-align: right;">
+            <button onclick="window.print()" style="padding: 12px 32px; font-weight: bold; background-color: #000; color: white; border: 2px solid #000; letter-spacing: 1px; text-transform: uppercase; cursor: pointer;">
+                🖨️ Print Form
+            </button>
+        </div>
+
+        <!-- Header with Logos -->
+        <div class="header-logos">
+            <img src="{{ url_for('static', filename='images/ccis.png') }}" alt="CCIS" class="header-logo">
+            <img src="{{ url_for('static', filename='images/ohso.png') }}" alt="OHSO" class="header-logo">
+            <img src="{{ url_for('static', filename='images/eas.png') }}" alt="EAS" class="header-logo">
+        </div>
+
+        <div class="header-title">
+            <div class="header-divider">
+                <h1>INCIDENT REPORT</h1>
+            </div>
+            <div class="subtitle">University of Makati - Emergency Alert System</div>
+        </div>
+
+        <!-- Incident Details Section -->
+        <div class="section">
+            <h2>Incident Details</h2>
+            <div class="grid-2">
+                <div class="field-group">
+                    <label class="field-label">Incident ID:</label>
+                    <div class="form-field">{{ incident.icd_id or 'N/A' }}</div>
+                </div>
+                <div class="field-group">
+                    <label class="field-label">Time Reported:</label>
+                    <div class="form-field">
+                        {% if incident.icd_timestamp %}
+                            {{ incident.icd_timestamp|format_datetime }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reported By Section -->
+        <div class="section">
+            <h3>Reported By / College / Year Level</h3>
+            <div class="field-group">
+                <label class="field-label">Name:</label>
+                <div class="form-field">{{ incident.reported_by or 'N/A' }}</div>
+            </div>
+            <div class="grid-2">
+                <div class="field-group">
+                    <label class="field-label">College:</label>
+                    <div class="form-field">{{ incident.student_college or 'N/A' }}</div>
+                </div>
+                <div class="field-group">
+                    <label class="field-label">Year Level:</label>
+                    <div class="form-field">
+                        {% if incident.student_number %}
+                            {% set student_id_str = incident.student_number|string %}
+                            {% if student_id_str|length >= 2 %}
+                                {% set year_digit = student_id_str[1:2] %}
+                                {% if year_digit == '1' %}1st Year
+                                {% elif year_digit == '2' %}2nd Year
+                                {% elif year_digit == '3' %}3rd Year
+                                {% elif year_digit == '4' %}4th Year
+                                {% elif year_digit == '5' %}5th Year
+                                {% else %}N/A{% endif %}
+                            {% else %}N/A{% endif %}
+                        {% else %}N/A{% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Information -->
+        <div class="section">
+            <div class="grid-2">
+                <div class="field-group">
+                    <label class="field-label">Status:</label>
+                    <div class="form-field">{{ incident.icd_status or 'N/A' }}</div>
+                </div>
+                <div class="field-group">
+                    <label class="field-label">Assigned Responder:</label>
+                    <div class="form-field">{{ incident.assigned_responder_name or 'N/A' }}</div>
+                </div>
+                <div class="field-group">
+                    <label class="field-label">Pending Timestamp:</label>
+                    <div class="form-field">
+                        {% if incident.pending_timestamp %}
+                            {{ incident.pending_timestamp|format_datetime }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="field-group">
+                    <label class="field-label">Cancelled Timestamp:</label>
+                    <div class="form-field">
+                        {% if incident.cancelled_timestamp %}
+                            {{ incident.cancelled_timestamp|format_datetime }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="field-group" style="grid-column: 1 / -1;">
+                    <label class="field-label">Resolved Timestamp:</label>
+                    <div class="form-field">
+                        {% if incident.resolved_timestamp %}
+                            {{ incident.resolved_timestamp|format_datetime }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Category & Type Details Section -->
+        <div class="section">
+            <h2>Category & Type Details</h2>
+            <div class="grid-2">
+                <div class="field-group">
+                    <label class="field-label">Category:</label>
+                    <div class="form-field">{{ incident.icd_category or 'N/A' }}</div>
+                </div>
+                {% if incident.icd_category == 'Medical' %}
+                <div class="field-group">
+                    <label class="field-label">Medical Type:</label>
+                    <div class="form-field">{{ incident.icd_medical_type or 'N/A' }}</div>
+                </div>
+                {% elif incident.icd_category == 'Security' %}
+                <div class="field-group">
+                    <label class="field-label">Security Type:</label>
+                    <div class="form-field">{{ incident.icd_security_type or 'N/A' }}</div>
+                </div>
+                {% elif incident.icd_category == 'University' %}
+                <div class="field-group">
+                    <label class="field-label">University Type:</label>
+                    <div class="form-field">{{ incident.icd_university_type or 'N/A' }}</div>
+                </div>
+                {% elif incident.icd_category == 'Urgent' %}
+                <div class="field-group">
+                    <label class="field-label">Urgency Type:</label>
+                    <div class="form-field">Urgent Emergency</div>
+                </div>
+                {% else %}
+                <div class="field-group">
+                    <label class="field-label">Type:</label>
+                    <div class="form-field">N/A</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Location / Coordinates Section -->
+        <div class="section">
+            <h2>Location / Coordinates</h2>
+            <div class="field-group">
+                <label class="field-label">Coordinates:</label>
+                <div style="display: flex; gap: 16px; margin-top: 4px;">
+                    <div style="flex: 1;">
+                        <span class="field-label" style="display: inline;">Lat:</span>
+                        <span class="form-field" style="display: inline-block; min-width: 150px; margin-left: 8px;">
+                            {% if incident.icd_lat %}
+                                {% set lat_val = incident.icd_lat|float %}
+                                {{ "%.6f"|format(lat_val) }}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div style="flex: 1;">
+                        <span class="field-label" style="display: inline;">Lng:</span>
+                        <span class="form-field" style="display: inline-block; min-width: 150px; margin-left: 8px;">
+                            {% if incident.icd_lng %}
+                                {% set lng_val = incident.icd_lng|float %}
+                                {{ "%.6f"|format(lng_val) }}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="field-group">
+                <label class="field-label">Computed Location Name:</label>
+                <div class="form-field">{{ incident.computed_location_name or 'N/A' }}</div>
+            </div>
+        </div>
+
+        <!-- Incident Description Section -->
+        <div class="section">
+            <h2>Incident Description</h2>
+            <div class="description-box">
+                {{ incident.icd_description or 'No description provided.' }}
+            </div>
+        </div>
+
+        <!-- Report Summary (Resolved) Section -->
+        {% if resolution_report and incident.icd_status == 'Resolved' %}
+        <div class="section">
+            <h2>Report Summary (Resolved)</h2>
+            <div class="grid-2">
+                <div class="field-group">
+                    <label class="field-label">Resolution ID:</label>
+                    <div class="form-field">{{ resolution_report.resolved_id or 'N/A' }}</div>
+                </div>
+                <div class="field-group">
+                    <label class="field-label">Resolved At:</label>
+                    <div class="form-field">
+                        {% if resolution_report.resolved_at %}
+                            {{ resolution_report.resolved_at|format_datetime }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="field-group">
+                    <label class="field-label">Resolved By:</label>
+                    <div class="form-field">{{ resolution_report.resolved_by_name or resolution_report.resolved_by or 'N/A' }}</div>
+                </div>
+                <div class="field-group">
+                    <label class="field-label">Response Time:</label>
+                    <div class="form-field">
+                        {% if resolution_report.response_minutes %}
+                            {% set hours = (resolution_report.response_minutes / 60)|int %}
+                            {% set minutes = (resolution_report.response_minutes % 60)|int %}
+                            {% if hours > 0 %}
+                                {{ hours }} hour{{ 's' if hours != 1 else '' }}{% if minutes > 0 %}, {{ minutes }} minute{{ 's' if minutes != 1 else '' }}{% endif %}
+                            {% else %}
+                                {{ minutes }} minute{{ 's' if minutes != 1 else '' }}
+                            {% endif %}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% if resolution_report.summary_headline %}
+            <div class="field-group" style="margin-top: 12px;">
+                <label class="field-label">Summary Headline:</label>
+                <div class="form-field">{{ resolution_report.summary_headline }}</div>
+            </div>
+            {% endif %}
+            {% if resolution_report.summary_details %}
+            <div class="field-group" style="margin-top: 12px;">
+                <label class="field-label">Summary Details:</label>
+                <div class="description-box" style="min-height: 100px;">
+                    {% if resolution_report.summary_details is mapping %}
+                        {% if resolution_report.summary_details.key_points %}
+                        <ul style="margin-left: 20px; line-height: 1.8;">
+                            {% for point in resolution_report.summary_details.key_points %}
+                            <li>{{ point }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        {{ resolution_report.summary_details|tojson(indent=2) }}
+                        {% endif %}
+                    {% else %}
+                    {{ resolution_report.summary_details }}
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            {% if resolution_report.summary_notes %}
+            <div class="field-group" style="margin-top: 12px;">
+                <label class="field-label">Summary Notes:</label>
+                <div class="description-box" style="min-height: 150px;">
+                    {{ resolution_report.summary_notes }}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-grid">
+                <div>
+                    <span class="field-label">Prepared by:</span>
+                    <div class="form-field" style="margin-top: 8px;">{{ admin_name or 'N/A' }}</div>
+                </div>
+                <div>
+                    <span class="field-label">Printed Date:</span>
+                    <div class="form-field" style="margin-top: 8px;">{{ export_date or 'N/A' }}</div>
+                </div>
+                <div>
+                    <span class="field-label">Page:</span>
+                    <div class="form-field" style="margin-top: 8px;">1</div>
+                </div>
+            </div>
+            <div class="footer-note">
+                <em>This document contains confidential information. Handle in accordance with institutional policies.</em>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

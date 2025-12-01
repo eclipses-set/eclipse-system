@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Requests - Emergency Alert System</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/sos.png') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { 
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #fef2f2 0%, #ffffff 100%);
+        }
+        .status-pending {
+            background-color: #f59e0b;
+        }
+        .status-approved {
+            background-color: #10b981;
+        }
+        .status-rejected {
+            background-color: #ef4444;
+        }
+        .request-card {
+            transition: all 0.3s ease;
+        }
+        .request-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .request-item {
+            display: block;
+        }
+        .request-item.hidden {
+            display: none;
+        }
+        .filter-btn {
+            transition: all 0.3s ease;
+        }
+        .filter-btn.active {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .filter-btn:not(.active):hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .profile-dropdown {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 0.5rem;
+            width: 200px;
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            z-index: 50;
+        }
+        .profile-dropdown a {
+            display: block;
+            padding: 0.75rem 1rem;
+            color: #4b5563;
+            text-decoration: none;
+        }
+        .profile-dropdown a:hover {
+            background-color: #f3f4f6;
+        }
+        .divider {
+            height: 1px;
+            background-color: #e5e7eb;
+            margin: 0.25rem 0;
+        }
+        /* Mobile Hamburger Menu Styles */
+        .hamburger-menu {
+            display: none;
+        }
+        
+        .mobile-nav {
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 9999;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease-in-out;
+        }
+        
+        .mobile-nav.show {
+            transform: translateX(0);
+        }
+        
+        @media (min-width: 769px) {
+            .mobile-nav {
+                display: none !important;
+            }
+        }
+        
+        .mobile-nav-content {
+            padding: 2rem;
+            height: 100%;
+            overflow-y: auto;
+        }
+        
+        .mobile-nav-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #374151;
+        }
+        
+        .mobile-nav-item {
+            display: block;
+            padding: 1rem;
+            color: white;
+            text-decoration: none;
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+            transition: background-color 0.2s;
+        }
+        
+        .mobile-nav-item:hover,
+        .mobile-nav-item.active {
+            background-color: #3b82f6;
+        }
+        
+        @media (max-width: 768px) {
+            .hamburger-menu {
+                display: block;
+            }
+            
+            .desktop-nav {
+                display: none !important;
+            }
+        }
+        
+        /* Alerts Button Tooltip */
+        .alerts-tooltip {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 10px;
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5), 0 0 20px rgba(239, 68, 68, 0.3);
+            z-index: 1000;
+            min-width: 200px;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            animation: tooltipFadeIn 0.3s ease;
+        }
+        
+        .alerts-tooltip.show {
+            display: block;
+        }
+        
+        .alerts-tooltip::after {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            right: 20px;
+            border: 8px solid transparent;
+            border-bottom-color: #1f2937;
+        }
+        
+        @keyframes tooltipFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(5px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .tooltip-header {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #ef4444;
+            margin-bottom: 10px;
+            border-bottom: 1px solid rgba(239, 68, 68, 0.3);
+            padding-bottom: 8px;
+        }
+        
+        .tooltip-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            font-size: 13px;
+        }
+        
+        .tooltip-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .tooltip-value {
+            font-weight: 700;
+            font-size: 14px;
+        }
+        
+        .tooltip-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 24px;
+            height: 24px;
+            padding: 0 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        
+        .tooltip-badge.active {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .tooltip-badge.pending {
+            background: #f97316;
+            color: white;
+        }
+        
+        /* Loading Screen Styles */
+        .loading-screen {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%);
+            background-size: 200% 200%;
+            animation: gradientShift 3s ease infinite;
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .loading-screen.show {
+            display: flex;
+            opacity: 1;
+        }
+        
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes spinReverse {
+            0% { transform: rotate(360deg); }
+            100% { transform: rotate(0deg); }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { 
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+            }
+            50% { 
+                transform: translate(-50%, -50%) scale(1.2);
+                opacity: 0.8;
+            }
+        }
+        
+        @keyframes dotBounce {
+            0%, 80%, 100% {
+                transform: translateY(0);
+                opacity: 0.7;
+            }
+            40% {
+                transform: translateY(-15px);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-100">
+    <!-- Header -->
+    <header class="bg-gray-800 shadow-2xl border-b-4 border-red-600">
+        <div class="max-w-8xl mx-auto px-2 sm:px-4 md:px-6 lg:px-10">
+            <div class="flex justify-between items-center py-2 md:py-4">
+                <div class="flex items-center space-x-2 md:space-x-4 flex-1 min-w-0">
+                    <img src="{{ url_for('static', filename='images/ccis.png') }}" alt="CCIS Logo" class="h-8 w-8 md:h-12 md:w-12 lg:h-14 lg:w-14 flex-shrink-0" data-fallback-src="{{ url_for('static', filename='images/ccis.svg') }}">
+                    <img src="{{ url_for('static', filename='images/ohso.png') }}" alt="OHSO Logo" class="h-8 w-8 md:h-12 md:w-12 lg:h-14 lg:w-14 flex-shrink-0" data-fallback-src="{{ url_for('static', filename='images/ohso.svg') }}">
+                    <img src="{{ url_for('static', filename='images/eas.png') }}" alt="EAS Logo" class="h-8 w-8 md:h-12 md:w-12 lg:h-14 lg:w-14 flex-shrink-0" data-fallback-src="{{ url_for('static', filename='images/eas.svg') }}">
+                    <div class="min-w-0 flex-1">
+                        <h1 class="text-xs sm:text-sm md:text-lg lg:text-2xl font-bold text-white truncate">UMAK'S EMERGENCY ALERT SYSTEM</h1>
+                        <p class="text-xs md:text-sm text-red-300 hidden sm:block">Account Requests Management</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-6">
+                    <!-- Desktop Navigation -->
+                    <nav class="desktop-nav hidden md:flex items-center space-x-1">
+                        <button onclick="showDashboard()" class="nav-btn px-4 py-2 rounded-lg font-medium transition-colors text-gray-300 hover:text-white hover:bg-gray-700">
+                            <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
+                        </button>
+                        <button onclick="showUserManagement()" class="nav-btn px-4 py-2 rounded-lg font-medium transition-colors text-gray-300 hover:text-white hover:bg-gray-700">
+                            <i class="fas fa-users mr-2"></i>Users
+                        </button>
+                        <button onclick="showIncidentManagement()" class="nav-btn px-4 py-2 rounded-lg font-medium transition-colors text-gray-300 hover:text-white hover:bg-gray-700">
+                            <i class="fas fa-clipboard-list mr-2"></i>Incidents
+                        </button>
+                    </nav>
+                    
+                    <!-- Mobile Hamburger Menu Button -->
+                    <button id="hamburgerBtn" class="hamburger-menu md:hidden text-white p-2 rounded-lg hover:bg-gray-700 transition-colors" type="button">
+                        <i class="fas fa-bars text-2xl"></i>
+                    </button>
+                
+                    <div class="flex items-center space-x-2 md:space-x-4 lg:space-x-6">
+                        <div class="hidden sm:flex items-center space-x-2">
+                            <div class="w-3 h-3 md:w-4 md:h-4 bg-green-400 rounded-full animate-pulse"></div>
+                            <span class="text-xs md:text-sm font-medium text-green-300">System Online</span>
+                        </div>
+                        
+                        <div class="relative">
+                            <button id="alertsButton" 
+                                    class="bg-red-600 hover:bg-red-700 text-white px-2 py-1.5 md:px-4 md:py-2 rounded-lg font-medium transition-colors text-xs md:text-sm">
+                                <i class="fas fa-bell md:mr-2"></i>
+                                <span class="hidden sm:inline">Alerts </span>(<span id="alertsButtonCount">{{ active_alerts_count|default(0) }}</span>)
+                            </button>
+                            <div id="alertsTooltip" class="alerts-tooltip">
+                                <div class="tooltip-header">
+                                    <i class="fas fa-info-circle mr-1"></i>Alert Details
+                                </div>
+                                <div class="tooltip-item">
+                                    <div class="tooltip-label">
+                                        <i class="fas fa-exclamation-triangle text-red-400"></i>
+                                        <span>Active Alerts:</span>
+                                    </div>
+                                    <span class="tooltip-value">
+                                        <span id="tooltipActiveCount" class="tooltip-badge active">0</span>
+                                    </span>
+                                </div>
+                                <div class="tooltip-item">
+                                    <div class="tooltip-label">
+                                        <i class="fas fa-clock text-orange-400"></i>
+                                        <span>Pending Alerts:</span>
+                                    </div>
+                                    <span class="tooltip-value">
+                                        <span id="tooltipPendingCount" class="tooltip-badge pending">0</span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="relative">
+                            <div class="flex items-center space-x-1 md:space-x-2 cursor-pointer" id="profileButton">
+                                {% if session.get('admin_profile_exists') and session.admin_profile %}
+                                    <img src="{{ url_for('static', filename='images/' + session.admin_profile) }}" alt="{{ session.admin_name }}" class="w-8 h-8 md:w-10 md:h-10 rounded-full flex-shrink-0 object-cover"
+                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <div class="w-8 h-8 md:w-10 md:h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-xs md:text-sm flex-shrink-0" style="display: none;">
+                                        {{ (session.admin_name or 'Admin')|get_initials }}
+                                    </div>
+                                {% else %}
+                                    <div class="w-8 h-8 md:w-10 md:h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-xs md:text-sm flex-shrink-0">
+                                        {{ (session.admin_name or 'Admin')|get_initials }}
+                                    </div>
+                                {% endif %}
+                                <div class="text-xs md:text-sm text-left hidden sm:block">
+                                    <p class="font-medium text-white truncate max-w-[100px] md:max-w-none flex items-center gap-1.5">
+                                        {{ session.admin_name }}
+                                        {% if session.role == 'Super Admin' or session.role == 'System Administrator' %}
+                                        <span class="relative inline-flex items-center group">
+                                            <i class="fas fa-crown text-yellow-400 text-sm" 
+                                               style="filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); text-shadow: 0 0 4px rgba(255, 215, 0, 0.5);"></i>
+                                            <span class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2.5 py-1.5 text-xs font-medium text-white bg-gray-900 rounded-md shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-50" 
+                                                  style="min-width: max-content;">
+                                                System Administrator (Super Admin)
+                                            </span>
+                                        </span>
+                                        {% endif %}
+                                    </p>
+                                    <p class="text-gray-300 text-xs hidden md:block">{{ session.role }}</p>
+                                </div>
+                                <i class="fas fa-chevron-down text-gray-300 text-xs hidden sm:block"></i>
+                            </div>
+                            
+                            <div id="profileDropdown" class="profile-dropdown">
+                                <a href="{{ url_for('profile') }}">
+                                    <i class="fas fa-user-circle mr-2"></i>My Profile
+                                </a>
+                                <div class="divider"></div>
+                                <a href="{{ url_for('logout') }}">
+                                    <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Mobile Navigation Menu -->
+    <div id="mobileNav" class="mobile-nav">
+        <div class="mobile-nav-content">
+            <div class="mobile-nav-header">
+                <h2 class="text-2xl font-bold text-white">Menu</h2>
+                <button onclick="toggleMobileNav()" class="text-white p-2 rounded-lg hover:bg-gray-700 transition-colors" type="button">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+            <nav class="space-y-2">
+                <a href="#" onclick="showDashboard(); toggleMobileNav(); return false;" class="mobile-nav-item flex items-center">
+                    <i class="fas fa-tachometer-alt mr-3"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" onclick="showUserManagement(); toggleMobileNav(); return false;" class="mobile-nav-item flex items-center">
+                    <i class="fas fa-users mr-3"></i>
+                    <span>Users</span>
+                </a>
+                <a href="#" onclick="showIncidentManagement(); toggleMobileNav(); return false;" class="mobile-nav-item flex items-center">
+                    <i class="fas fa-clipboard-list mr-3"></i>
+                    <span>Incidents</span>
+                </a>
+            </nav>
+        </div>
+    </div>
+    
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-content" style="position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <div class="loading-spinner-container" style="position: relative; width: 120px; height: 120px; margin-bottom: 30px;">
+                <div class="loading-spinner-outer" style="position: absolute; width: 120px; height: 120px; border: 4px solid rgba(239, 68, 68, 0.2); border-top: 4px solid #ef4444; border-right: 4px solid #ef4444; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                <div class="loading-spinner-middle" style="position: absolute; top: 15px; left: 15px; width: 90px; height: 90px; border: 3px solid rgba(239, 68, 68, 0.3); border-top: 3px solid #f87171; border-radius: 50%; animation: spinReverse 1.5s linear infinite;"></div>
+                <div class="loading-spinner-inner" style="position: absolute; top: 30px; left: 30px; width: 60px; height: 60px; border: 2px solid rgba(239, 68, 68, 0.4); border-top: 2px solid #fca5a5; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+                <div class="loading-icon" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 32px; color: #ef4444; animation: pulse 1.5s ease-in-out infinite;">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+            </div>
+            <div class="loading-text" style="color: white; font-size: 22px; font-weight: 700; margin-top: 20px; text-align: center; text-transform: uppercase; letter-spacing: 2px;">
+                Redirecting to Dashboard
+                <span class="loading-dots" style="display: inline-block; margin-left: 5px;">
+                    <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ef4444; margin: 0 3px; animation: dotBounce 1.4s ease-in-out infinite;"></span>
+                    <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ef4444; margin: 0 3px; animation: dotBounce 1.4s ease-in-out infinite; animation-delay: 0.2s;"></span>
+                    <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ef4444; margin: 0 3px; animation: dotBounce 1.4s ease-in-out infinite; animation-delay: 0.4s;"></span>
+                </span>
+            </div>
+            <div class="loading-subtext" style="color: rgba(255, 255, 255, 0.7); font-size: 14px; margin-top: 10px; text-align: center; font-weight: 400; letter-spacing: 1px;">Please wait while we load your alerts</div>
+        </div>
+    </div>
+
+    <div class="w-full px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 py-6 md:py-8">
+        <div class="w-full space-y-6 md:space-y-8">
+            <!-- Page Header -->
+            <div class="text-center">
+                <h1 class="text-3xl md:text-4xl font-bold text-gray-800 flex items-center justify-center gap-2">
+                    <i class="fas fa-user-clock text-red-600"></i>
+                    Account Requests Management
+                </h1>
+                <p class="mt-2 text-gray-600">Review and manage administrator account requests</p>
+                
+                <!-- Statistics -->
+                <div class="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
+                    <div class="bg-white rounded-lg shadow p-4 text-center">
+                        <div class="text-2xl font-bold text-blue-600">{{ requests|length }}</div>
+                        <div class="text-sm text-gray-600">Total Requests</div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-4 text-center">
+                        <div class="text-2xl font-bold text-yellow-600">
+                            {{ requests|selectattr('admin_approval', 'equalto', 'Pending')|list|length }}
+                        </div>
+                        <div class="text-sm text-gray-600">Pending</div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-4 text-center">
+                        <div class="text-2xl font-bold text-green-600">
+                            {{ requests|selectattr('admin_approval', 'equalto', 'Approved')|list|length }}
+                        </div>
+                        <div class="text-sm text-gray-600">Approved</div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-4 text-center">
+                        <div class="text-2xl font-bold text-red-600">
+                            {{ requests|selectattr('admin_approval', 'equalto', 'Rejected')|list|length }}
+                        </div>
+                        <div class="text-sm text-gray-600">Rejected</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter Section -->
+            <div class="bg-white rounded-xl shadow-md border border-gray-100 p-4 mb-6">
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-filter text-gray-600"></i>
+                        <span class="text-sm font-semibold text-gray-700">Filter by Status:</span>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button onclick="filterRequests('all')" 
+                                id="filter-all"
+                                class="filter-btn px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow-md active">
+                            <i class="fas fa-list mr-2"></i>All
+                        </button>
+                        <button onclick="filterRequests('Pending')" 
+                                id="filter-Pending"
+                                class="filter-btn px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border border-yellow-300">
+                            <i class="fas fa-clock mr-2"></i>Pending
+                        </button>
+                        <button onclick="filterRequests('Approved')" 
+                                id="filter-Approved"
+                                class="filter-btn px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-green-100 text-green-800 hover:bg-green-200 border border-green-300">
+                            <i class="fas fa-check-circle mr-2"></i>Approved
+                        </button>
+                        <button onclick="filterRequests('Rejected')" 
+                                id="filter-Rejected"
+                                class="filter-btn px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-red-100 text-red-800 hover:bg-red-200 border border-red-300">
+                            <i class="fas fa-times-circle mr-2"></i>Rejected
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Requests Grid -->
+            {% if requests %}
+            <div id="requestsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {% for req in requests %}
+                <div class="request-card bg-white rounded-xl shadow-lg p-6 border-l-4 request-item" 
+                     data-status="{{ req.admin_approval }}" 
+                    {% if req.admin_approval == 'Pending' %}border-yellow-500
+                    {% elif req.admin_approval == 'Approved' %}border-green-500
+                    {% else %}border-red-500{% endif %}">
+                    
+                    <!-- Request Header -->
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900">{{ req.admin_fullname }}</h3>
+                            <p class="text-sm text-gray-500">@{{ req.admin_user }}</p>
+                            <p class="text-xs text-gray-400 mt-1">Request ID: {{ req.id }}</p>
+                        </div>
+                        <span class="px-3 py-1 text-xs font-medium text-white rounded-full 
+                            {% if req.admin_approval == 'Pending' %}status-pending
+                            {% elif req.admin_approval == 'Approved' %}status-approved
+                            {% else %}status-rejected{% endif %}">
+                            {{ req.admin_approval }}
+                        </span>
+                    </div>
+
+                    <!-- Request Details -->
+                    <div class="space-y-2 text-sm text-gray-600">
+                        <p><i class="fas fa-envelope mr-2"></i>{{ req.admin_email }}</p>
+                        <p><i class="fas fa-user-tag mr-2"></i>{{ req.admin_role }}</p>
+                        <p><i class="fas fa-calendar mr-2"></i>Requested: {{ req.formatted_requested_at }}</p>
+                        
+                        {% if req.formatted_permitted_at %}
+                        <p><i class="fas fa-check-circle mr-2"></i>Processed: {{ req.formatted_permitted_at }}</p>
+                        {% endif %}
+                        
+                        {% if req.reviewed_by_name %}
+                        <p><i class="fas fa-user-check mr-2"></i>Reviewed by: {{ req.reviewed_by_name }}</p>
+                        {% endif %}
+                        
+                        {% if req.rejection_reason %}
+                        <p><i class="fas fa-comment mr-2"></i>Reason: {{ req.rejection_reason }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Request Reason -->
+                    {% if req.request_reason %}
+                    <div class="mt-4 p-3 bg-gray-50 rounded-lg">
+                        <p class="text-sm text-gray-700"><strong>Application Reason:</strong> {{ req.request_reason }}</p>
+                    </div>
+                    {% endif %}
+
+                    <!-- Action Buttons (only for pending requests) -->
+                    {% if req.admin_approval == 'Pending' %}
+                    <div class="mt-6 flex space-x-2">
+                        <button data-request-id="{{ req.id }}" 
+                                class="approve-request-btn flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center">
+                            <i class="fas fa-check mr-2"></i>Approve
+                        </button>
+                        <button data-request-id="{{ req.id }}" 
+                                class="reject-request-btn flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center">
+                            <i class="fas fa-times mr-2"></i>Reject
+                        </button>
+                    </div>
+                    {% endif %}
+
+                    <!-- Additional Info for Processed Requests -->
+                    {% if req.admin_approval != 'Pending' %}
+                    <div class="mt-4 text-center">
+                        <p class="text-sm text-gray-500">
+                            {% if req.admin_approval == 'Approved' %}
+                            <i class="fas fa-check-circle text-green-500 mr-1"></i> User can now login
+                            {% else %}
+                            <i class="fas fa-times-circle text-red-500 mr-1"></i> Request rejected
+                            {% endif %}
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <!-- Empty State -->
+            <div class="text-center py-16">
+                <div class="bg-white rounded-2xl shadow-lg p-8 max-w-md mx-auto">
+                    <i class="fas fa-inbox text-6xl text-gray-300 mb-4"></i>
+                    <h3 class="text-xl font-semibold text-gray-600 mb-2">No Account Requests</h3>
+                    <p class="text-gray-500 mb-6">There are no pending account requests at this time.</p>
+                    <div class="space-y-3">
+                        <a href="{{ url_for('dashboard') }}" class="block bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+                            <i class="fas fa-arrow-left mr-2"></i>Back to Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        // Global variable to track active requests
+        let activeRequest = false;
+
+        function approveRequest(requestId) {
+            if (activeRequest) {
+                Swal.fire('Please wait', 'Another request is being processed', 'warning');
+                return;
+            }
+            
+            console.log(`🔄 Approving request: ${requestId}`);
+            activeRequest = true;
+            
+            Swal.fire({
+                title: 'Approve Account Request?',
+                text: 'This will create an admin account and notify the user via email.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Yes, Approve Account',
+                cancelButtonText: 'Cancel',
+                showLoaderOnConfirm: true,
+                preConfirm: () => {
+                    return fetch(`/api/approve-request/${requestId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    })
+                    .then(response => {
+                        console.log('Response status:', response.status);
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (!data.success) {
+                            throw new Error(data.message || 'Failed to approve request');
+                        }
+                        return data;
+                    })
+                    .catch(error => {
+                        Swal.showValidationMessage(`Request failed: ${error.message}`);
+                    });
+                }
+            }).then((result) => {
+                activeRequest = false;
+                
+                if (result.isConfirmed) {
+                    console.log('✅ Approval successful:', result.value);
+                    Swal.fire({
+                        title: 'Approved!',
+                        text: result.value.message,
+                        icon: 'success',
+                        confirmButtonColor: '#10b981'
+                    }).then(() => {
+                        // Reload the page to show updated status
+                        location.reload();
+                    });
+                } else if (result.isDismissed) {
+                    console.log('❌ Approval cancelled by user');
+                }
+            });
+        }
+
+        function rejectRequest(requestId) {
+            if (activeRequest) {
+                Swal.fire('Please wait', 'Another request is being processed', 'warning');
+                return;
+            }
+            
+            console.log(`🔄 Rejecting request: ${requestId}`);
+            activeRequest = true;
+            
+            Swal.fire({
+                title: 'Reject Account Request?',
+                input: 'textarea',
+                inputLabel: 'Reason for rejection (optional)',
+                inputPlaceholder: 'Enter reason for rejection...',
+                inputAttributes: {
+                    'maxlength': '500'
+                },
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Reject Request',
+                cancelButtonText: 'Cancel',
+                showLoaderOnConfirm: true,
+                preConfirm: (reason) => {
+                    return fetch(`/api/reject-request/${requestId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            reason: reason || 'Does not meet current access requirements'
+                        })
+                    })
+                    .then(response => {
+                        console.log('Response status:', response.status);
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (!data.success) {
+                            throw new Error(data.message || 'Failed to reject request');
+                        }
+                        return data;
+                    })
+                    .catch(error => {
+                        Swal.showValidationMessage(`Request failed: ${error.message}`);
+                    });
+                }
+            }).then((result) => {
+                activeRequest = false;
+                
+                if (result.isConfirmed) {
+                    console.log('✅ Rejection successful:', result.value);
+                    Swal.fire({
+                        title: 'Rejected!',
+                        text: result.value.message,
+                        icon: 'success',
+                        confirmButtonColor: '#ef4444'
+                    }).then(() => {
+                        // Reload the page to show updated status
+                        location.reload();
+                    });
+                } else if (result.isDismissed) {
+                    console.log('❌ Rejection cancelled by user');
+                }
+            });
+        }
+
+        // Auto-refresh page every 30 seconds if there are pending requests
+        setInterval(() => {
+            const hasPending = document.querySelector('.status-pending');
+            if (hasPending && !activeRequest) {
+                console.log('🔄 Auto-refreshing for pending requests...');
+                location.reload();
+            }
+        }, 30000);
+
+        // Add keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key) {
+                    case 'r':
+                        e.preventDefault();
+                        location.reload();
+                        break;
+                }
+            }
+        });
+
+        // Log page load
+        console.log('📄 Account Requests page loaded');
+        console.log('Total requests: {{ requests|length }}');
+        
+        // Filter requests by status
+        function filterRequests(status) {
+            // Remove active class from all filter buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+                // Reset button styles
+                if (btn.id === 'filter-all') {
+                    btn.className = 'filter-btn px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-blue-100 text-blue-800 hover:bg-blue-200 border border-blue-300';
+                } else if (btn.id === 'filter-Pending') {
+                    btn.className = 'filter-btn px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border border-yellow-300';
+                } else if (btn.id === 'filter-Approved') {
+                    btn.className = 'filter-btn px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-green-100 text-green-800 hover:bg-green-200 border border-green-300';
+                } else if (btn.id === 'filter-Rejected') {
+                    btn.className = 'filter-btn px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-red-100 text-red-800 hover:bg-red-200 border border-red-300';
+                }
+            });
+            
+            // Add active class to clicked button
+            const activeButton = document.getElementById(`filter-${status}`);
+            if (activeButton) {
+                activeButton.classList.add('active');
+                if (status === 'all') {
+                    activeButton.className = 'filter-btn px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow-md active';
+                } else if (status === 'Pending') {
+                    activeButton.className = 'filter-btn px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-yellow-600 text-white hover:bg-yellow-700 shadow-sm hover:shadow-md active';
+                } else if (status === 'Approved') {
+                    activeButton.className = 'filter-btn px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow-md active';
+                } else if (status === 'Rejected') {
+                    activeButton.className = 'filter-btn px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-red-600 text-white hover:bg-red-700 shadow-sm hover:shadow-md active';
+                }
+            }
+            
+            // Filter request items
+            const requestItems = document.querySelectorAll('.request-item');
+            let visibleCount = 0;
+            
+            requestItems.forEach(item => {
+                const itemStatus = item.getAttribute('data-status');
+                
+                if (status === 'all' || itemStatus === status) {
+                    item.classList.remove('hidden');
+                    visibleCount++;
+                } else {
+                    item.classList.add('hidden');
+                }
+            });
+            
+            // Show/hide empty state for filtered results
+            const emptyState = document.getElementById('emptyStateFiltered');
+            const requestsGrid = document.getElementById('requestsGrid');
+            
+            if (visibleCount === 0 && requestsGrid) {
+                if (!emptyState) {
+                    // Create empty state for filtered results
+                    const emptyDiv = document.createElement('div');
+                    emptyDiv.id = 'emptyStateFiltered';
+                    emptyDiv.className = 'text-center py-16';
+                    emptyDiv.innerHTML = `
+                        <div class="bg-white rounded-2xl shadow-lg p-8 max-w-md mx-auto">
+                            <i class="fas fa-filter text-6xl text-gray-300 mb-4"></i>
+                            <h3 class="text-xl font-semibold text-gray-600 mb-2">No ${status === 'all' ? '' : status} Requests</h3>
+                            <p class="text-gray-500 mb-6">There are no ${status === 'all' ? '' : status.toLowerCase()} account requests to display.</p>
+                            <button onclick="filterRequests('all')" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+                                <i class="fas fa-list mr-2"></i>Show All Requests
+                            </button>
+                        </div>
+                    `;
+                    requestsGrid.parentNode.insertBefore(emptyDiv, requestsGrid.nextSibling);
+                } else {
+                    emptyState.style.display = 'block';
+                    emptyState.querySelector('h3').textContent = `No ${status === 'all' ? '' : status} Requests`;
+                    emptyState.querySelector('p').textContent = `There are no ${status === 'all' ? '' : status.toLowerCase()} account requests to display.`;
+                }
+            } else {
+                if (emptyState) {
+                    emptyState.style.display = 'none';
+                }
+            }
+            
+            // Update count display if exists
+            const countDisplay = document.getElementById('filteredCount');
+            if (countDisplay) {
+                countDisplay.textContent = visibleCount;
+            }
+        }
+        
+        // Navigation functions
+        function showDashboard() {
+            window.location.href = '{{ url_for("dashboard") }}';
+        }
+
+        function showUserManagement() {
+            window.location.href = '{{ url_for("user_management") }}';
+        }
+
+        function showIncidentManagement() {
+            window.location.href = '{{ url_for("incident_management") }}';
+        }
+
+        // Mobile navigation toggle function
+        function toggleMobileNav() {
+            const mobileNav = document.getElementById('mobileNav');
+            if (mobileNav) {
+                mobileNav.classList.toggle('show');
+                // Prevent body scroll when menu is open
+                if (mobileNav.classList.contains('show')) {
+                    document.body.style.overflow = 'hidden';
+                } else {
+                    document.body.style.overflow = '';
+                }
+            }
+        }
+        
+        // Profile dropdown functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load alert counts for tooltip on page load
+            loadAlertCounts();
+            
+            // Initialize filter - set "All" as active by default
+            const allFilterBtn = document.getElementById('filter-all');
+            if (allFilterBtn) {
+                allFilterBtn.classList.add('active');
+                allFilterBtn.className = 'filter-btn px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow-md active';
+            }
+            
+            // Set up alerts button event listeners
+            const alertsButton = document.getElementById('alertsButton');
+            if (alertsButton) {
+                // Click handler - navigate to dashboard or highlight alerts
+                alertsButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    highlightAlertNotifications();
+                });
+                
+                // Hover handlers for tooltip
+                alertsButton.addEventListener('mouseenter', function(e) {
+                    showAlertsTooltip(this);
+                });
+                
+                alertsButton.addEventListener('mouseleave', function(e) {
+                    hideAlertsTooltip(this);
+                });
+            }
+            
+            const profileButton = document.getElementById('profileButton');
+            if (profileButton) {
+                profileButton.addEventListener('click', function() {
+                    const dropdown = document.getElementById('profileDropdown');
+                    dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+                });
+            }
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('#profileButton')) {
+                    const dropdown = document.getElementById('profileDropdown');
+                    if (dropdown) {
+                        dropdown.style.display = 'none';
+                    }
+                }
+            });
+            
+            // Initialize hamburger button click handler
+            const hamburgerBtn = document.getElementById('hamburgerBtn');
+            if (hamburgerBtn) {
+                hamburgerBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    toggleMobileNav();
+                });
+            }
+            
+            // Close mobile nav when clicking outside
+            document.addEventListener('click', function(event) {
+                const mobileNav = document.getElementById('mobileNav');
+                const hamburgerBtn = document.getElementById('hamburgerBtn');
+                
+                if (mobileNav && mobileNav.classList.contains('show')) {
+                    if (!mobileNav.contains(event.target) && event.target !== hamburgerBtn && hamburgerBtn && !hamburgerBtn.contains(event.target)) {
+                        toggleMobileNav();
+                    }
+                }
+            });
+            
+            // Set up approve request button event listeners
+            document.querySelectorAll('.approve-request-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const requestId = this.getAttribute('data-request-id');
+                    if (requestId) {
+                        approveRequest(parseInt(requestId));
+                    }
+                });
+            });
+            
+            // Set up reject request button event listeners
+            document.querySelectorAll('.reject-request-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const requestId = this.getAttribute('data-request-id');
+                    if (requestId) {
+                        rejectRequest(parseInt(requestId));
+                    }
+                });
+            });
+        });
+        
+        // Function to highlight alert notifications when alerts button is clicked
+        function highlightAlertNotifications() {
+            const alertSection = document.getElementById('alertNotificationsSection');
+            const liveMapSection = document.getElementById('liveMapSection');
+            
+            // Highlight alert notifications section if it exists
+            if (alertSection) {
+                // Scroll to the alert notifications section
+                alertSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                
+                // Add highlight animation
+                alertSection.style.transition = 'all 0.3s ease';
+                alertSection.style.border = '3px solid #ef4444';
+                alertSection.style.boxShadow = '0 0 20px rgba(239, 68, 68, 0.5)';
+                alertSection.style.backgroundColor = '#fef2f2';
+                
+                // Remove highlight after 3 seconds
+                setTimeout(() => {
+                    alertSection.style.border = '';
+                    alertSection.style.boxShadow = '';
+                    alertSection.style.backgroundColor = '';
+                }, 3000);
+                
+                // Also highlight the first alert card if available
+                const firstAlert = document.querySelector('.emergency-card');
+                if (firstAlert) {
+                    firstAlert.style.transition = 'all 0.3s ease';
+                    firstAlert.style.border = '2px solid #ef4444';
+                    firstAlert.style.boxShadow = '0 0 15px rgba(239, 68, 68, 0.4)';
+                    setTimeout(() => {
+                        firstAlert.style.border = '';
+                        firstAlert.style.boxShadow = '';
+                    }, 3000);
+                }
+            }
+            
+            // Highlight live map section if it exists
+            if (liveMapSection) {
+                // Scroll to the live map section (with a slight delay to show both highlights)
+                setTimeout(() => {
+                    liveMapSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 500);
+                
+                // Add highlight animation
+                liveMapSection.style.transition = 'all 0.3s ease';
+                liveMapSection.style.border = '3px solid #ef4444';
+                liveMapSection.style.boxShadow = '0 0 20px rgba(239, 68, 68, 0.5)';
+                liveMapSection.style.backgroundColor = '#fef2f2';
+                
+                // Also highlight the map container
+                const mapContainer = document.getElementById('map-container');
+                if (mapContainer) {
+                    mapContainer.style.transition = 'all 0.3s ease';
+                    mapContainer.style.border = '2px solid #ef4444';
+                    mapContainer.style.boxShadow = '0 0 15px rgba(239, 68, 68, 0.4)';
+                }
+                
+                // Remove highlight after 3 seconds
+                setTimeout(() => {
+                    liveMapSection.style.border = '';
+                    liveMapSection.style.boxShadow = '';
+                    liveMapSection.style.backgroundColor = '';
+                    if (mapContainer) {
+                        mapContainer.style.border = '';
+                        mapContainer.style.boxShadow = '';
+                    }
+                }, 3000);
+            }
+            
+            // If neither section exists, show loading screen and redirect to dashboard
+            if (!alertSection && !liveMapSection) {
+                // Show loading screen
+                const loadingScreen = document.getElementById('loadingScreen');
+                if (loadingScreen) {
+                    loadingScreen.classList.add('show');
+                }
+                
+                // Redirect to dashboard after a brief delay
+                setTimeout(() => {
+                    window.location.href = '{{ url_for("dashboard") }}';
+                }, 500);
+            }
+        }
+        
+        async function loadAlertCounts() {
+            try {
+                const response = await fetch('/api/alerts/count');
+                const result = await response.json();
+                if (result.success && result.counts) {
+                    const activeCount = result.counts.active || 0;
+                    const pendingCount = result.counts.pending || 0;
+                    const totalCount = activeCount + pendingCount;
+                    
+                    // Update tooltip counts
+                    const activeCountEl = document.getElementById('tooltipActiveCount');
+                    const pendingCountEl = document.getElementById('tooltipPendingCount');
+                    const buttonCountEl = document.getElementById('alertsButtonCount');
+                    
+                    if (activeCountEl) {
+                        activeCountEl.textContent = activeCount;
+                    }
+                    if (pendingCountEl) {
+                        pendingCountEl.textContent = pendingCount;
+                    }
+                    if (buttonCountEl) {
+                        buttonCountEl.textContent = totalCount;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading alert counts:', error);
+            }
+        }
+        
+        function showAlertsTooltip(button) {
+            const tooltip = document.getElementById('alertsTooltip');
+            if (tooltip) {
+                tooltip.classList.add('show');
+                // Load counts if not already loaded
+                loadAlertCounts();
+            }
+        }
+        
+        function hideAlertsTooltip(button) {
+            const tooltip = document.getElementById('alertsTooltip');
+            if (tooltip) {
+                tooltip.classList.remove('show');
+            }
+        }
+        
+    </script>
+</body>
+</html>
