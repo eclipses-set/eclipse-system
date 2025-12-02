@@ -40,9 +40,9 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 # Initialize Supabase client
 try:
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-    print("✅ Supabase client initialized successfully")
+    print("Supabase client initialized successfully")
 except Exception as e:
-    print(f"❌ Error initializing Supabase client: {e}")
+    print(f"Error initializing Supabase client: {e}")
     supabase = None
 
 # Table name for storing resolution summaries (can be overridden via environment)
@@ -495,8 +495,13 @@ def get_active_admins():
 def get_recent_activities(limit=60):
     """Build an incident activity feed that records every status change alongside the original report."""
     try:
-        # Fetch all incidents to act as the base reference
-        incidents_result = supabase.table('alert_incidents').select('*').execute()
+        # Fetch all incidents to act as the base reference with retry
+        def get_incidents():
+            return supabase.table('alert_incidents').select('*').execute()
+        
+        incidents_result = retry_supabase_query(get_incidents)
+        if not incidents_result:
+            return []
         incidents = incidents_result.data or []
 
         incident_map = {str(incident.get('icd_id')): incident for incident in incidents}
@@ -510,8 +515,11 @@ def get_recent_activities(limit=60):
                 user_ids_list = list(user_ids)
                 for i in range(0, len(user_ids_list), batch_size):
                     batch = user_ids_list[i:i + batch_size]
-                    students_result = supabase.table('accounts_student').select('user_id, full_name').in_('user_id', batch).execute()
-                    if students_result.data:
+                    def get_students_batch():
+                        return supabase.table('accounts_student').select('user_id, full_name').in_('user_id', batch).execute()
+                    
+                    students_result = retry_supabase_query(get_students_batch)
+                    if students_result and students_result.data:
                         for student in students_result.data:
                             students_map[str(student['user_id'])] = student.get('full_name', 'N/A')
             except Exception as e:
@@ -545,8 +553,11 @@ def get_recent_activities(limit=60):
         audit_entries = []
         try:
             audit_fetch_limit = max(limit * 3, 120)
-            audit_result = supabase.table('incident_audit_trail').select('*').order('changed_at', desc=True).limit(audit_fetch_limit).execute()
-            audit_entries = audit_result.data or []
+            def get_audit_trail():
+                return supabase.table('incident_audit_trail').select('*').order('changed_at', desc=True).limit(audit_fetch_limit).execute()
+            
+            audit_result = retry_supabase_query(get_audit_trail)
+            audit_entries = audit_result.data if audit_result else []
         except Exception as e:
             print(f"Warning: unable to load incident audit trail, falling back to incident timestamps. Details: {e}")
             audit_entries = []
@@ -562,8 +573,11 @@ def get_recent_activities(limit=60):
             try:
                 admin_id_list = [admin_id for admin_id in admin_ids if admin_id is not None]
                 if admin_id_list:
-                    admins_result = supabase.table('accounts_admin').select('admin_id, admin_fullname').in_('admin_id', admin_id_list).execute()
-                    if admins_result.data:
+                    def get_admins():
+                        return supabase.table('accounts_admin').select('admin_id, admin_fullname').in_('admin_id', admin_id_list).execute()
+                    
+                    admins_result = retry_supabase_query(get_admins)
+                    if admins_result and admins_result.data:
                         for admin in admins_result.data:
                             admin_map[str(admin['admin_id'])] = admin.get('admin_fullname', 'Unknown Admin')
             except Exception as e:
@@ -2638,6 +2652,11 @@ def index():
         return redirect(url_for('dashboard'))
     return redirect(url_for('login'))
 
+@app.route('/developers')
+def developers():
+    """Developers page route"""
+    return render_template('developers.html')
+
 @app.route('/dashboard')
 def dashboard():
     """Admin dashboard route"""
@@ -3140,6 +3159,72 @@ def get_map_stats_api():
         print(f"Error fetching map stats: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+def retry_supabase_query(query_func, max_retries=3, delay=0.5):
+    """
+    Retry a Supabase query function with exponential backoff.
+    Handles socket errors and connection issues.
+    """
+    import socket
+    try:
+        import httpx
+        import httpcore
+    except ImportError:
+        httpx = None
+        httpcore = None
+    
+    for attempt in range(max_retries):
+        try:
+            return query_func()
+        except (OSError, socket.error) as e:
+            error_str = str(e)
+            # Check for Windows socket errors (10035, 10054, etc.)
+            if '10035' in error_str or '10054' in error_str or 'non-blocking' in error_str.lower():
+                if attempt < max_retries - 1:
+                    wait_time = delay * (2 ** attempt)  # Exponential backoff
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    # Return None on final failure to prevent crashes
+                    print(f"Socket error after {max_retries} attempts, returning None: {e}")
+                    return None
+            else:
+                raise
+        except Exception as e:
+            error_str = str(e)
+            error_type = type(e).__name__
+            
+            # Check for httpx/httpcore ReadError
+            is_read_error = False
+            if httpx:
+                try:
+                    is_read_error = isinstance(e, httpx.ReadError)
+                except:
+                    pass
+            if httpcore and not is_read_error:
+                try:
+                    is_read_error = isinstance(e, httpcore.ReadError)
+                except:
+                    pass
+            
+            # Check for Windows socket errors (10035, 10054) or ReadError
+            if is_read_error or '10035' in error_str or '10054' in error_str or 'non-blocking' in error_str.lower() or 'ReadError' in error_type:
+                if attempt < max_retries - 1:
+                    wait_time = delay * (2 ** attempt)
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    print(f"Connection error after {max_retries} attempts, returning None: {error_type}: {e}")
+                    return None
+            
+            # For other errors, only retry on first attempt if it's a connection issue
+            if attempt == 0 and ('connection' in error_str.lower() or 'timeout' in error_str.lower()):
+                time.sleep(delay)
+                continue
+            
+            # Don't retry on other errors
+            raise
+    return None
+
 def get_date_range(start_date, end_date):
     """Helper function to get date range in ISO format"""
     if start_date and end_date:
@@ -3208,35 +3293,43 @@ def get_dashboard_stats():
     try:
         date_range = request.args.get('date_range', 'today')
         
-        # Base query
-        query = supabase.table('alert_incidents').select('*', count='exact')
+        # Base query with retry logic
+        def get_total_alerts():
+            query = supabase.table('alert_incidents').select('*', count='exact')
+            query = apply_date_filter(query, date_range)
+            return query.execute()
         
-        # Apply date filter
-        query = apply_date_filter(query, date_range)
+        total_alerts_result = retry_supabase_query(get_total_alerts)
+        total_alerts_count = total_alerts_result.count if total_alerts_result else 0
         
-        # Total alerts for the date range
-        total_alerts_result = query.execute()
-        total_alerts_count = total_alerts_result.count or 0
+        # Active alerts in date range with retry
+        def get_active_alerts():
+            active_query = supabase.table('alert_incidents').select('*', count='exact').eq('icd_status', 'Active')
+            active_query = apply_date_filter(active_query, date_range)
+            return active_query.execute()
         
-        # Active alerts in date range
-        active_query = supabase.table('alert_incidents').select('*', count='exact').eq('icd_status', 'Active')
-        active_query = apply_date_filter(active_query, date_range)
-        active_result = active_query.execute()
-        active_count = active_result.count or 0
+        active_result = retry_supabase_query(get_active_alerts)
+        active_count = active_result.count if active_result else 0
         
-        # Resolved alerts in date range
-        resolved_query = supabase.table('alert_incidents').select('*', count='exact').eq('icd_status', 'Resolved')
-        resolved_query = apply_date_filter(resolved_query, date_range)
-        resolved_result = resolved_query.execute()
-        resolved_count = resolved_result.count or 0
+        # Resolved alerts in date range with retry
+        def get_resolved_alerts():
+            resolved_query = supabase.table('alert_incidents').select('*', count='exact').eq('icd_status', 'Resolved')
+            resolved_query = apply_date_filter(resolved_query, date_range)
+            return resolved_query.execute()
         
-        # Calculate average response time (time from icd_timestamp to resolved_timestamp)
-        resolved_incidents_query = supabase.table('alert_incidents').select('icd_timestamp, resolved_timestamp').eq('icd_status', 'Resolved').not_.is_('resolved_timestamp', 'null')
-        resolved_incidents_query = apply_date_filter(resolved_incidents_query, date_range)
-        resolved_incidents = resolved_incidents_query.execute()
+        resolved_result = retry_supabase_query(get_resolved_alerts)
+        resolved_count = resolved_result.count if resolved_result else 0
+        
+        # Calculate average response time with retry
+        def get_resolved_incidents():
+            resolved_incidents_query = supabase.table('alert_incidents').select('icd_timestamp, resolved_timestamp').eq('icd_status', 'Resolved').not_.is_('resolved_timestamp', 'null')
+            resolved_incidents_query = apply_date_filter(resolved_incidents_query, date_range)
+            return resolved_incidents_query.execute()
+        
+        resolved_incidents = retry_supabase_query(get_resolved_incidents)
         
         avg_response_time = 0
-        if resolved_incidents.data:
+        if resolved_incidents and resolved_incidents.data:
             total_seconds = 0
             count = 0
             for incident in resolved_incidents.data:
@@ -3264,6 +3357,7 @@ def get_dashboard_stats():
         })
     except Exception as e:
         print(f"Error fetching dashboard stats: {e}")
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/dashboard/alert-types')
@@ -4678,7 +4772,7 @@ def display_user_management():
     """Display the user management page with pagination and filtering - FIXED VERSION"""
     # Get query parameters
     page = max(1, int(request.args.get('page', 1)))
-    limit_param = request.args.get('limit', '10')
+    limit_param = request.args.get('limit', 'all')
     filter_type = request.args.get('filter', 'all')
     search_term = request.args.get('search', '')
     action = request.args.get('action')
@@ -4764,6 +4858,7 @@ def display_user_management():
                 user['created_at'] = user.get('student_created_at', 'N/A')
                 user['last_login'] = user.get('student_last_login', None)
                 user['profile_image'] = user.get('student_profile', 'default.png')
+                user['is_verified'] = user.get('is_verified', user.get('email_verified'))
                 
                 # ADDITIONAL STUDENT FIELDS FOR TABLE DISPLAY
                 user['student_id'] = user.get('student_id', '')
@@ -4813,6 +4908,7 @@ def display_user_management():
                 user['created_at'] = user.get('student_created_at', 'N/A')
                 user['last_login'] = user.get('student_last_login', None)
                 user['profile_image'] = user.get('student_profile', 'default.png')
+                user['is_verified'] = user.get('is_verified', user.get('email_verified'))
                 
                 # ADDITIONAL STUDENT FIELDS FOR TABLE DISPLAY
                 user['student_id'] = user.get('student_id', '')
@@ -4881,6 +4977,9 @@ def display_user_management():
             
             if result.data:
                 edit_data = result.data[0]
+                # Normalize email verification flag
+                if edit_data is not None:
+                    edit_data['is_verified'] = edit_data.get('is_verified', edit_data.get('email_verified'))
                 print(f"Edit data loaded: {edit_data}")
             else:
                 print(f"No data found for {edit_type} with ID {edit_id}")
@@ -4904,6 +5003,14 @@ def display_user_management():
         colleges = sorted(list(set([c.get('student_college') for c in (college_result.data or []) if c.get('student_college')])))
     except:
         colleges = []
+    
+    try:
+        residency_result = supabase.table('accounts_student').select('residency').not_.is_('residency', 'null').execute()
+        residency_options = sorted(list(set([r.get('residency') for r in (residency_result.data or []) if r.get('residency')])))
+        if not residency_options:
+            residency_options = ['MAKATI', 'NON-MAKATI']
+    except:
+        residency_options = ['MAKATI', 'NON-MAKATI']
     
     # Get contact relationship enum values (from database enum or existing data)
     contact_relationships = get_contact_relationship_enum_values()
@@ -4952,6 +5059,7 @@ def display_user_management():
                          admin_status_options=admin_status_options,
                          year_level_options=year_level_options,
                          colleges=colleges,
+                         residency_options=residency_options,
                          primary_relationships=primary_relationships,
                          secondary_relationships=secondary_relationships)
 
@@ -5914,6 +6022,162 @@ def api_check_chat_table():
             'table_exists': False,
             'message': f'Error checking table: {str(e)}'
         }), 500
+
+@app.route('/api/chat/incidents', methods=['GET'])
+def api_get_chat_incidents():
+    """API endpoint to get incidents where admin is assigned handler with unread counts"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    
+    try:
+        admin_id = session['admin_id']
+        
+        if not check_chat_table_exists():
+            return jsonify({'success': False, 'message': 'Chat table does not exist'}), 500
+        
+        # Get all incidents where this admin is the assigned handler
+        incidents_result = supabase.table('alert_incidents').select('*').eq('assigned_responder_id', str(admin_id)).order('icd_timestamp', desc=True).execute()
+        incidents = incidents_result.data or []
+        
+        # Get student full names
+        user_ids = {incident.get('user_id') for incident in incidents if incident.get('user_id')}
+        students_map = {}
+        if user_ids:
+            try:
+                batch_size = 100
+                user_ids_list = list(user_ids)
+                for i in range(0, len(user_ids_list), batch_size):
+                    batch = user_ids_list[i:i + batch_size]
+                    students_result = supabase.table('accounts_student').select('user_id, full_name').in_('user_id', batch).execute()
+                    if students_result.data:
+                        for student in students_result.data:
+                            user_id = student.get('user_id')
+                            if user_id is not None:
+                                students_map[str(user_id)] = student.get('full_name', '')
+            except Exception as e:
+                print(f"Error fetching student names: {e}")
+        
+        # Get unread counts for each incident
+        incident_list = []
+        for incident in incidents:
+            incident_id = str(incident.get('icd_id', ''))
+            user_id = str(incident.get('user_id', ''))
+            
+            # Get unread count for this incident
+            try:
+                result = supabase.table('chat_messages').select('id', count='exact').eq('incident_id', incident_id).eq('receiver_id', str(admin_id)).eq('is_read', False).execute()
+                unread_count = result.count if hasattr(result, 'count') and result.count is not None else 0
+            except Exception as e:
+                print(f"Error getting unread count for incident {incident_id}: {e}")
+                unread_count = 0
+            
+            incident_list.append({
+                'icd_id': incident_id,
+                'full_name': students_map.get(user_id, 'Unknown Student'),
+                'icd_status': incident.get('icd_status', ''),
+                'icd_timestamp': incident.get('icd_timestamp', ''),
+                'user_id': user_id,
+                'unread_count': unread_count,
+                'has_unread': unread_count > 0
+            })
+        
+        return jsonify({
+            'success': True,
+            'incidents': incident_list,
+            'count': len(incident_list)
+        })
+    except Exception as e:
+        print(f"Error getting chat incidents: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/chat/incident/<incident_id>', methods=['GET'])
+def api_get_incident_chat(incident_id):
+    """API endpoint to get ALL chat messages for an incident_id - no date limits"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    
+    try:
+        admin_id = session['admin_id']
+        
+        can_view, view_message = can_admin_view_incident(incident_id, admin_id)
+        if not can_view:
+            return jsonify({'success': False, 'message': view_message}), 403
+        
+        if not check_chat_table_exists():
+            return jsonify({'success': False, 'message': 'Chat table does not exist'}), 500
+        
+        # Get ALL messages for this incident - no limit, no date filter
+        result = supabase.table('chat_messages').select('*').eq('incident_id', str(incident_id)).order('timestamp', desc=False).execute()
+        
+        messages = result.data or []
+        
+        # Sort by timestamp ascending to ensure chronological order
+        messages.sort(key=lambda x: x.get('timestamp', '') or x.get('created_at', ''))
+        
+        # Mark all messages for this incident as read where admin is receiver
+        try:
+            supabase.table('chat_messages').update({
+                'is_read': True
+            }).eq('incident_id', str(incident_id)).eq('receiver_id', str(admin_id)).eq('is_read', False).execute()
+        except Exception as e:
+            print(f"Error marking messages as read: {e}")
+        
+        # Get incident details for the response
+        try:
+            incident_result = supabase.table('alert_incidents').select('*').eq('icd_id', str(incident_id)).limit(1).execute()
+            incident = incident_result.data[0] if incident_result.data else None
+            
+            # Get student name
+            student_name = 'Unknown Student'
+            if incident and incident.get('user_id'):
+                try:
+                    student_result = supabase.table('accounts_student').select('full_name').eq('user_id', str(incident.get('user_id'))).limit(1).execute()
+                    if student_result.data:
+                        student_name = student_result.data[0].get('full_name', 'Unknown Student')
+                except:
+                    pass
+        except:
+            incident = None
+            student_name = 'Unknown Student'
+        
+        return jsonify({
+            'success': True,
+            'messages': messages,
+            'incident': incident,
+            'student_name': student_name
+        })
+    except Exception as e:
+        print(f"Error getting chat history: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/chat/read/<incident_id>', methods=['PUT'])
+def api_mark_incident_read(incident_id):
+    """API endpoint to mark all messages for an incident as read"""
+    if 'admin_id' not in session:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    
+    try:
+        admin_id = session['admin_id']
+        
+        can_view, view_message = can_admin_view_incident(incident_id, admin_id)
+        if not can_view:
+            return jsonify({'success': False, 'message': view_message}), 403
+        
+        # Update all messages for this incident where admin is receiver
+        result = supabase.table('chat_messages').update({
+            'is_read': True
+        }).eq('incident_id', str(incident_id)).eq('receiver_id', str(admin_id)).eq('is_read', False).execute()
+        
+        return jsonify({
+            'success': True
+        })
+    except Exception as e:
+        print(f"Error marking incident as read: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 # ==================== DEBUG ROUTES ====================
 @app.route('/debug/users')
@@ -8219,4 +8483,7 @@ def health():
     return {'status': 'healthy', 'timestamp': datetime.now().isoformat()}
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Allow hosting platforms like Railway to inject the port value
+    port = int(os.getenv('PORT', '5000'))
+    debug_mode = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
+    app.run(debug=debug_mode, host='0.0.0.0', port=port)

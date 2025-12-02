@@ -920,21 +920,11 @@
                         
                         <div class="flex items-center gap-4 flex-wrap">
                             <div class="flex items-center gap-2">
-                                <label for="filterSelect" class="text-sm font-medium text-gray-700">Filter:</label>
-                                <select id="filterSelect" onchange="changeFilter(this.value)" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white min-w-[140px]">
+                                <label for="serverFilterSelect" class="text-sm font-medium text-gray-700">Filter:</label>
+                                <select id="serverFilterSelect" onchange="changeServerFilter(this.value)" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white min-w-[160px]">
                                     <option value="all" {% if filter_type == 'all' %}selected{% endif %}>All Users</option>
-                                    <option value="admin" {% if filter_type == 'admin' %}selected{% endif %}>Admins Only</option>
-                                    <option value="student" {% if filter_type == 'student' %}selected{% endif %}>Students Only</option>
-                                </select>
-                            </div>
-                            
-                            <div class="flex items-center gap-2">
-                                <label for="limitSelect" class="text-sm font-medium text-gray-700">Show:</label>
-                                <select id="limitSelect" onchange="changeLimit(this.value)" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white min-w-[100px]">
-                                    <option value="10" {% if limit_param == '10' %}selected{% endif %}>10</option>
-                                    <option value="25" {% if limit_param == '25' %}selected{% endif %}>25</option>
-                                    <option value="50" {% if limit_param == '50' %}selected{% endif %}>50</option>
-                                    <option value="all" {% if limit_param == 'all' %}selected{% endif %}>All</option>
+                                    <option value="student" {% if filter_type == 'student' %}selected{% endif %}>Students</option>
+                                    <option value="admin" {% if filter_type == 'admin' %}selected{% endif %}>Admins</option>
                                 </select>
                             </div>
                             
@@ -976,6 +966,20 @@
                                     <p class="text-xs text-gray-300 mt-2" id="archivedUsersStatusText">No archived users yet.</p>
                                 </div>
                             </div>
+                            <div class="action-button-wrapper">
+                                <button id="bulkUserReportButton" onclick="triggerBulkUserDirectoryReport()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-colors shadow-sm hover:shadow focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400">
+                                    <i class="fas fa-file-export"></i>
+                                    <span>User Reports</span>
+                                </button>
+                                <div class="action-tooltip">
+                                    <h4>User Reports</h4>
+                                    <div class="tooltip-line">
+                                        <span>Generate</span>
+                                        <strong>Bulk summaries</strong>
+                                    </div>
+                                    <p class="text-xs text-gray-300 mt-2">Exports the current view into a printable report.</p>
+                                </div>
+                            </div>
                             <button onclick="openAddModal()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-colors shadow-sm hover:shadow">
                                 <i class="fas fa-plus"></i>
                                 <span>Add User</span>
@@ -987,6 +991,43 @@
                         <span class="font-semibold text-gray-800">Total Users: <span class="text-gray-900 font-bold">{{ total_count }}</span></span>
                         <span class="font-semibold text-blue-700">Admins: <span class="text-blue-800 font-bold">{{ admin_count }}</span></span>
                         <span class="font-semibold text-green-700">Students: <span class="text-green-800 font-bold">{{ student_count }}</span></span>
+                    </div>
+
+                    <!-- Filters: College, Year Level, Residency -->
+                    <div class="flex flex-col gap-3 mt-4">
+                        <div class="flex flex-wrap items-center gap-4">
+                            <div class="flex items-center gap-2">
+                                <label for="collegeFilter" class="text-sm font-medium text-gray-700">College:</label>
+                                <select id="collegeFilter" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white min-w-[180px]">
+                                    <option value="">All Colleges</option>
+                                    {% for college in colleges %}
+                                        <option value="{{ college }}">{{ college }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label for="yearFilter" class="text-sm font-medium text-gray-700">Year Level:</label>
+                                <select id="yearFilter" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white min-w-[160px]">
+                                    <option value="">All Levels</option>
+                                    {% for level in year_level_options %}
+                                        <option value="{{ level }}">{{ level }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label for="residencyFilter" class="text-sm font-medium text-gray-700">Residency:</label>
+                                <select id="residencyFilter" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white min-w-[160px]">
+                                    <option value="">All Residencies</option>
+                                    {% for residency in residency_options %}
+                                        <option value="{{ residency }}">{{ residency }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <button type="button" id="clearFiltersButton" class="text-sm font-semibold text-red-600 hover:text-red-700 flex items-center gap-2 transition-colors">
+                                <i class="fas fa-undo"></i>
+                                Clear Filters
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1009,12 +1050,28 @@
                         <tbody class="bg-white divide-y divide-gray-200">
                             {% if users %}
                                 {% for user in users %}
-                                    <tr class="hover:bg-gray-50 transition-colors user-row" data-user-id="{{ user.id }}" data-user-type="{{ user.type }}" data-updated-at="{{ user.updated_at or user.last_login or '' }}">
+                                    <tr class="hover:bg-gray-50 transition-colors user-row"
+                                        data-user-id="{{ user.id }}"
+                                        data-user-type="{{ user.type }}"
+                                        data-name="{{ (user.fullname | default('', true)) | lower }}"
+                                        data-college="{{ (user.student_college | default('', true)) | lower }}"
+                                        data-year="{{ (user.student_yearlvl | default('', true)) | lower }}"
+                                        data-residency="{{ (user.residency | default('', true)) | lower }}"
+                                        data-role="{{ (user.role | default(user.type, true)) | lower }}"
+                                        data-created="{{ user.created_at or '' }}"
+                                        data-last-login="{{ user.last_login or '' }}"
+                                        data-updated-at="{{ user.updated_at or user.last_login or '' }}">
                                         <!-- User Column -->
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <div class="flex items-center">
                                                 {% if user.profile_image and user.profile_image != 'default.png' %}
-                                                    <img src="{{ url_for('static', filename='images/' + user.profile_image) }}" alt="{{ user.fullname }}" class="profile-avatar">
+                                                    {% set profile_filename = user.profile_image.split('?', 1)[0] %}
+                                                    {% if profile_filename.lower().startswith('http') %}
+                                                        {% set profile_src = profile_filename %}
+                                                    {% else %}
+                                                        {% set profile_src = url_for('static', filename='images/' + profile_filename) %}
+                                                    {% endif %}
+                                                    <img src="{{ profile_src }}" alt="{{ user.fullname }}" class="profile-avatar">
                                                 {% else %}
                                                     <div class="profile-fallback">
                                                         {% if user.fullname %}
@@ -1061,10 +1118,11 @@
                                                 <div class="text-sm text-gray-500">
                                                     <strong>Residency:</strong> {{ user.residency or 'N/A' }}
                                                 </div>
-                                                {% if user.email_verified is not none %}
+                                                {% set verified_status = user.is_verified %}
+                                                {% if verified_status is not none %}
                                                 <div class="text-xs">
-                                                    <span class="px-1 py-0.5 rounded-full {% if user.email_verified %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
-                                                        Email {% if user.email_verified %}Verified{% else %}Not Verified{% endif %}
+                                                    <span class="px-1 py-0.5 rounded-full {% if verified_status %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                                                        Email {% if verified_status %}Verified{% else %}Not Verified{% endif %}
                                                     </span>
                                                 </div>
                                                 {% endif %}
@@ -1169,6 +1227,11 @@
                                                         title="Edit User">
                                                     <i class="fas fa-edit"></i>
                                                 </button>
+                                                <button onclick="openUserReportModal('individual', '{{ user.id }}', '{{ user.type }}')" 
+                                                        class="p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-all duration-200 hover:scale-110 hover:shadow-md"
+                                                        title="Generate Report">
+                                                    <i class="fas fa-file-alt"></i>
+                                                </button>
                                                 <button class="archive-btn p-2 text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-lg transition-all duration-200 hover:scale-110 hover:shadow-md" 
                                                         data-user-id="{{ user.id }}" 
                                                         data-user-type="{{ user.type }}" 
@@ -1180,6 +1243,13 @@
                                         </td>
                                     </tr>
                                 {% endfor %}
+                                <tr id="userFilterEmptyState" class="hidden">
+                                    <td colspan="8" class="px-6 py-8 text-center text-gray-500">
+                                        <i class="fas fa-filter text-3xl mb-3 text-gray-300"></i>
+                                        <p class="text-lg font-semibold">No users match the selected filters</p>
+                                        <p class="text-sm mt-1">Try adjusting the college, year level, or residency filters.</p>
+                                    </td>
+                                </tr>
                             {% else %}
                                 <tr>
                                     <td colspan="8" class="px-6 py-8 text-center text-gray-500">
@@ -1642,7 +1712,7 @@
                     <!-- Email Verified (Student Only) -->
                     <div id="emailVerifiedField" style="display: none;" class="mb-6">
                         <label class="flex items-center p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer">
-                            <input type="checkbox" name="email_verified" id="email_verified" 
+                            <input type="checkbox" name="is_verified" id="is_verified" 
                                    class="w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer">
                             <span class="ml-3 text-sm font-semibold text-gray-700">
                                 <i class="fas fa-check-circle text-green-600 mr-1"></i>
@@ -1829,6 +1899,73 @@
         </div>
     </div>
 
+    <!-- User Report Modal -->
+    <div id="userReportModal" class="modal">
+        <div class="modal-content max-w-3xl">
+            <div class="bg-gradient-to-r from-indigo-600 to-indigo-700 p-6 border-b border-indigo-800 flex justify-between items-center">
+                <div>
+                    <h2 class="text-2xl font-bold text-white" id="userReportModalTitle">User Report</h2>
+                    <p class="text-sm text-indigo-100 mt-1" id="userReportModalSubtitle">Generate a printable user summary</p>
+                </div>
+                <button type="button" onclick="closeUserReportModal()" class="text-white hover:text-indigo-200 transition-colors">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="userReportForm" class="p-6 space-y-6">
+                <input type="hidden" id="reportScopeInput" value="bulk">
+                <input type="hidden" id="reportUserIdInput">
+                <input type="hidden" id="reportUserTypeInput">
+                
+                <div id="individualReportSummary" class="bg-gray-50 border border-gray-200 rounded-xl p-4 hidden">
+                    <h3 class="text-base font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                        <i class="fas fa-user-circle text-indigo-600"></i>
+                        Subject of Report
+                    </h3>
+                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700" id="individualReportSummaryContent">
+                        <!-- Filled dynamically -->
+                    </dl>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="reportTitle" class="block text-sm font-semibold text-gray-700 mb-1">Report Title <span class="text-red-500">*</span></label>
+                        <input type="text" id="reportTitle" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., Student Profile Summary" required>
+                    </div>
+                    <div>
+                        <label for="reportPreparedBy" class="block text-sm font-semibold text-gray-700 mb-1">Prepared By <span class="text-red-500">*</span></label>
+                        <input type="text"
+                               id="reportPreparedBy"
+                               value="{{ session.admin_name or 'Administrator' }}"
+                               data-default-prepared="{{ session.admin_name or 'Administrator' }}"
+                               class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                               required>
+                    </div>
+                    <div>
+                        <label for="reportPurpose" class="block text-sm font-semibold text-gray-700 mb-1">Purpose</label>
+                        <input type="text" id="reportPurpose" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., Compliance review">
+                    </div>
+                    <div>
+                        <label for="reportTimeframe" class="block text-sm font-semibold text-gray-700 mb-1">Coverage Period</label>
+                        <input type="text" id="reportTimeframe" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., Nov 2025 – Dec 2025">
+                    </div>
+                </div>
+                
+                <div>
+                    <label for="reportSummary" class="block text-sm font-semibold text-gray-700 mb-1">Executive Summary</label>
+                    <textarea id="reportSummary" rows="3" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Provide a quick overview of the report objectives, highlights, and context."></textarea>
+                </div>
+                
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button" class="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 hover:text-gray-800 hover:border-gray-400 transition-colors" onclick="closeUserReportModal()">Cancel</button>
+                    <button type="submit" class="px-6 py-2.5 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-colors flex items-center gap-2">
+                        <i class="fas fa-print"></i>
+                        Generate Report
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Edit mode data (rendered by Jinja before JavaScript execution) -->
     <script type="application/json" id="editModeData">
         {% if action == 'edit' and edit_data %}
@@ -1837,6 +1974,7 @@
         null
         {% endif %}
     </script>
+    <script type="application/json" id="userDirectoryData">{{ users|tojson }}</script>
     
     <script>
         // Helper function to generate initials from full name
@@ -1865,6 +2003,30 @@
                 toast.remove();
             }, 5000);
         }
+        
+        const DEFAULT_PREPARED_BY = "{{ session.admin_name or 'Administrator' }}";
+
+        // Parsed user directory for reporting utilities
+        const USER_DIRECTORY = (() => {
+            const payloadEl = document.getElementById('userDirectoryData');
+            if (!payloadEl) {
+                return [];
+            }
+            try {
+                return JSON.parse(payloadEl.textContent || '[]') || [];
+            } catch (error) {
+                console.warn('Unable to parse user directory data', error);
+                return [];
+            }
+        })();
+
+        const userViewFilters = {
+            college: '',
+            year: '',
+            residency: ''
+        };
+        let currentSortOption = 'recent';
+        let currentUserReportContext = null;
 
         // Load pending requests count
         function loadPendingRequestsCount() {
@@ -1936,17 +2098,9 @@
             }
         }
 
-        // Filter and pagination functions
-        function changeFilter(filter) {
+        function changeServerFilter(filter) {
             const url = new URL(window.location.href);
             url.searchParams.set('filter', filter);
-            url.searchParams.set('page', '1');
-            window.location.href = url.toString();
-        }
-
-        function changeLimit(limit) {
-            const url = new URL(window.location.href);
-            url.searchParams.set('limit', limit);
             url.searchParams.set('page', '1');
             window.location.href = url.toString();
         }
@@ -2211,7 +2365,7 @@
                             document.getElementById('medinfo').value = user.student_medinfo || '';
                             document.getElementById('address').value = user.student_address || '';
                             document.getElementById('status').value = user.student_status || '';
-                            document.getElementById('email_verified').checked = user.email_verified || false;
+                            document.getElementById('is_verified').checked = user.is_verified || false;
                             
                             // Ensure dropdowns show the selected values
                             // If the value doesn't exist in the dropdown, add it
@@ -2373,6 +2527,488 @@
 
         function closeViewModal() {
             document.getElementById('viewModal').classList.remove('show');
+        }
+
+        // User report modal & export
+        function openUserReportModal(scope = 'bulk', userId = null, userType = null) {
+            const modal = document.getElementById('userReportModal');
+            if (!modal) {
+                return;
+            }
+
+            currentUserReportContext = null;
+            document.getElementById('reportScopeInput').value = scope;
+            document.getElementById('reportUserIdInput').value = userId || '';
+            document.getElementById('reportUserTypeInput').value = userType || '';
+
+            const summaryCard = document.getElementById('individualReportSummary');
+            if (summaryCard) {
+                summaryCard.classList.toggle('hidden', scope !== 'individual');
+            }
+
+            const titleEl = document.getElementById('userReportModalTitle');
+            const subtitleEl = document.getElementById('userReportModalSubtitle');
+            const titleInput = document.getElementById('reportTitle');
+            let desiredTitle = 'User Report';
+
+            if (scope === 'individual') {
+                if (titleEl) titleEl.textContent = 'Individual User Report';
+                if (subtitleEl) subtitleEl.textContent = 'Generate a detailed summary for this user.';
+                if (userId && userType) {
+                    const userRecord = findUserRecord(userId, userType);
+                    if (!userRecord) {
+                        showToast('Unable to locate this user for reporting.', 'error');
+                        return;
+                    }
+                    currentUserReportContext = userRecord;
+                    populateIndividualReportSummary(userRecord);
+                    desiredTitle = `User Report – ${userRecord.fullname || userRecord.username || userRecord.id}`;
+                }
+            } else {
+                if (titleEl) titleEl.textContent = 'Bulk User Report';
+                if (subtitleEl) subtitleEl.textContent = 'Export the current view into a printable report.';
+                desiredTitle = 'User Directory Report';
+            }
+
+            const formatter = new Intl.DateTimeFormat('en-PH', {
+                timeZone: 'Asia/Manila',
+                year: 'numeric',
+                month: 'long',
+                day: '2-digit'
+            });
+            const defaultTimeframe = formatter.format(new Date());
+
+            const form = document.getElementById('userReportForm');
+            if (form) {
+                form.reset();
+                // Re-apply defaults after reset
+                document.getElementById('reportTitle').value = desiredTitle;
+                const preparedInput = document.getElementById('reportPreparedBy');
+                if (preparedInput) {
+                    preparedInput.value = preparedInput.getAttribute('data-default-prepared') || 'Administrator';
+                }
+                const timeframeInput = document.getElementById('reportTimeframe');
+                if (timeframeInput) {
+                    timeframeInput.value = defaultTimeframe;
+                }
+            } else if (titleInput) {
+                titleInput.value = desiredTitle;
+            }
+
+            modal.classList.add('show');
+        }
+
+        function closeUserReportModal() {
+            const modal = document.getElementById('userReportModal');
+            if (modal) {
+                modal.classList.remove('show');
+            }
+        }
+
+        function populateIndividualReportSummary(user) {
+            const container = document.getElementById('individualReportSummaryContent');
+            if (!container) {
+                return;
+            }
+            const rows = [
+                { label: 'Full Name', value: user.fullname || user.username || 'N/A' },
+                { label: 'Username', value: user.username || 'N/A' },
+                { label: 'Role', value: user.role || user.type || 'N/A' },
+                { label: 'Student ID', value: user.student_id || user.id || 'N/A' },
+                { label: 'College', value: user.student_college || 'N/A' },
+                { label: 'Year Level', value: user.student_yearlvl || 'N/A' },
+                { label: 'Residency', value: user.residency || 'N/A' },
+                { label: 'Contact', value: user.student_cnum || user.email || 'N/A' }
+            ];
+            container.innerHTML = rows.map((row) => `
+                <div>
+                    <dt class="text-xs uppercase tracking-wide text-gray-500">${encodeHtml(row.label)}</dt>
+                    <dd class="font-semibold text-gray-900">${encodeHtml(row.value)}</dd>
+                </div>
+            `).join('');
+        }
+
+        function handleUserReportFormSubmit(event) {
+            event.preventDefault();
+            const scope = document.getElementById('reportScopeInput').value || 'bulk';
+            const entries = collectUsersForReport(scope);
+            if (!entries.length) {
+                showToast('No users available for report generation.', 'error');
+                return;
+            }
+
+            const payload = {
+                scope,
+                reportMeta: {
+                    title: document.getElementById('reportTitle').value.trim() || 'User Report',
+                    preparedBy: document.getElementById('reportPreparedBy').value.trim() || 'Administrator',
+                    purpose: document.getElementById('reportPurpose').value.trim(),
+                    timeframe: document.getElementById('reportTimeframe').value.trim(),
+                    summary: document.getElementById('reportSummary').value.trim()
+                },
+                entries
+            };
+
+            generateUserReportDocument(payload);
+            closeUserReportModal();
+            showToast('Report opened in a new tab.', 'success');
+        }
+
+        function collectUsersForReport(scope) {
+            if (scope === 'individual' && currentUserReportContext) {
+                return [currentUserReportContext];
+            }
+            const rows = Array.from(document.querySelectorAll('.user-row'));
+            if (!rows.length) {
+                return USER_DIRECTORY.slice(0);
+            }
+            const visibleRows = rows.filter((row) => row.style.display !== 'none');
+            const sourceRows = visibleRows.length ? visibleRows : rows;
+            const collection = sourceRows
+                .map((row) => findUserRecord(row.dataset.userId, row.dataset.userType))
+                .filter(Boolean);
+            return collection.length ? collection : USER_DIRECTORY.slice(0);
+        }
+
+        function triggerBulkUserDirectoryReport() {
+            const entries = collectUsersForReport('bulk');
+            if (!entries.length) {
+                showToast('No users available for report generation.', 'error');
+                return;
+            }
+
+            const payload = {
+                scope: 'bulk',
+                reportMeta: {
+                    title: 'User Directory Report',
+                    preparedBy: DEFAULT_PREPARED_BY,
+                    purpose: '',
+                    timeframe: '',
+                    summary: ''
+                },
+                entries
+            };
+
+            generateUserReportDocument(payload);
+            showToast('User Directory Report opened in a new tab.', 'success');
+        }
+
+        function findUserRecord(userId, userType) {
+            if (!Array.isArray(USER_DIRECTORY) || !USER_DIRECTORY.length) {
+                return null;
+            }
+            const normalizedId = String(userId);
+            const normalizedType = (userType || '').toLowerCase();
+            return USER_DIRECTORY.find((entry) => {
+                return String(entry.id) === normalizedId && (entry.type || '').toLowerCase() === normalizedType;
+            }) || null;
+        }
+
+        function generateUserReportDocument(payload) {
+            const reportWindow = window.open('', '_blank');
+            if (!reportWindow) {
+                showToast('Please enable pop-ups to view the report.', 'error');
+                return;
+            }
+
+            const generatedAt = new Date().toLocaleString('en-PH', {
+                timeZone: 'Asia/Manila',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            }).replace(',', ' at');
+
+            const formatBoolLabel = (value) => {
+                if (typeof value !== 'boolean') return 'N/A';
+                return value ? 'Email Verified' : 'Email Not Verified';
+            };
+
+            const formatEmergencyBlock = (name, phone, relation, label) => {
+                if (!name && !phone && !relation) {
+                    return `<div class="secondary">No ${label.toLowerCase()} contact on file</div>`;
+                }
+                return `
+                    <div class="summary-subsection">
+                        <div><strong>Name:</strong> ${encodeHtml(name || 'N/A')}</div>
+                        <div><strong>Phone:</strong> ${encodeHtml(phone || 'N/A')}</div>
+                        <div><strong>Relation:</strong> ${encodeHtml(relation || 'N/A')}</div>
+                    </div>
+                `;
+            };
+
+            const formatDateLabel = (value) => {
+                if (!value) return 'Never';
+                try {
+                    const dateObj = new Date(value);
+                    return Number.isNaN(dateObj.getTime()) ? value : dateObj.toLocaleString();
+                } catch {
+                    return value;
+                }
+            };
+
+            const rowsHtml = payload.entries.map((user, index) => {
+                const isStudent = (user.type || '').toLowerCase() === 'student';
+                const studentInfoHtml = isStudent ? `
+                    <div><strong>Student ID:</strong> ${encodeHtml(user.student_id || 'N/A')}</div>
+                    <div><strong>Year Level:</strong> ${encodeHtml(user.student_yearlvl || 'N/A')}</div>
+                    <div><strong>College:</strong> ${encodeHtml(user.student_college || 'N/A')}</div>
+                    <div><strong>Residency:</strong> ${encodeHtml(user.residency || 'N/A')}</div>
+                    <div><strong>Status:</strong> ${encodeHtml(formatBoolLabel(user.is_verified))}</div>
+                ` : '<div class="secondary">N/A for admin</div>';
+
+                const contactHtml = `
+                    <div>${encodeHtml(user.email || 'N/A')}</div>
+                    ${user.student_cnum ? `<div class="secondary">${encodeHtml(user.student_cnum)}</div>` : ''}
+                `;
+
+                const emergencyHtml = isStudent ? `
+                    <div><strong>Primary Contact</strong></div>
+                    ${formatEmergencyBlock(user.primary_contactperson || user.student_contactperson,
+                        user.primary_emergencycontact || user.student_emergencycontact,
+                        user.primary_cprelationship,
+                        'Primary')}
+                    <div style="margin-top:6px;"><strong>Secondary Contact</strong></div>
+                    ${formatEmergencyBlock(user.secondary_contactperson,
+                        user.secondary_emergencycontact,
+                        user.secondary_cprelationship,
+                        'Secondary')}
+                ` : '<div class="secondary">N/A for admin</div>';
+
+                const roleLabel = encodeHtml(user.role || user.type || 'N/A');
+                const statusLabel = encodeHtml(user.status || user.admin_status || user.student_status || 'N/A');
+                const lastLogin = encodeHtml(formatDateLabel(user.last_login || user.student_last_login || user.admin_last_login));
+
+                return `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>
+                            <div class="primary">${encodeHtml(user.fullname || user.username || 'N/A')}</div>
+                            <div class="secondary">Username: ${encodeHtml(user.username || 'N/A')}</div>
+                            <div class="secondary">Type: ${encodeHtml(user.type || 'N/A')}</div>
+                            <div class="secondary">ID: ${encodeHtml(user.id || '')}</div>
+                        </td>
+                        <td>${studentInfoHtml}</td>
+                        <td>${contactHtml}</td>
+                        <td>${emergencyHtml}</td>
+                        <td>${roleLabel}</td>
+                        <td>${statusLabel}</td>
+                        <td>${lastLogin}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            const docHtml = `
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>${encodeHtml(payload.reportMeta.title || 'User Report')}</title>
+                    <style>
+                        body { font-family: 'Inter', 'Segoe UI', Tahoma, sans-serif; margin: 0; padding: 1.5rem; color: #111827; }
+                        h1 { text-transform: uppercase; letter-spacing: 0.08em; font-size: 1.2rem; margin-bottom: 0.25rem; }
+                        .meta { font-size: 0.85rem; color: #4b5563; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 1.5rem; font-size: 0.82rem; }
+                        th, td { border: 1px solid #e5e7eb; padding: 0.65rem; text-align: left; vertical-align: top; }
+                        th { background: #f3f4f6; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: #6b7280; }
+                        .primary { font-weight: 600; color: #111827; }
+                        .secondary { font-size: 0.7rem; color: #6b7280; }
+                        .summary { margin-top: 1.25rem; }
+                        .summary h2 { margin-bottom: 0.5rem; font-size: 0.95rem; letter-spacing: 0.08em; text-transform: uppercase; }
+                        .summary p { font-size: 0.85rem; color: #374151; line-height: 1.6; }
+                        @media print { body { -webkit-print-color-adjust: exact; } }
+                    </style>
+                </head>
+                <body>
+                    <header>
+                        <h1>${encodeHtml(payload.reportMeta.title || 'User Report')}</h1>
+                        <div class="meta">
+                            <div><strong>Prepared By:</strong> ${encodeHtml(payload.reportMeta.preparedBy || 'Administrator')}</div>
+                            <div><strong>Generated:</strong> ${encodeHtml(generatedAt)}</div>
+                            ${payload.reportMeta.timeframe ? `<div><strong>Coverage:</strong> ${encodeHtml(payload.reportMeta.timeframe)}</div>` : ''}
+                            ${payload.reportMeta.purpose ? `<div><strong>Purpose:</strong> ${encodeHtml(payload.reportMeta.purpose)}</div>` : ''}
+                        </div>
+                    </header>
+                    <section class="summary">
+                        ${payload.reportMeta.summary ? `<p>${encodeHtml(payload.reportMeta.summary)}</p>` : ''}
+                    </section>
+                     <table>
+                         <thead>
+                             <tr>
+                                 <th>#</th>
+                                 <th>User</th>
+                                 <th>Student Info</th>
+                                 <th>Contact</th>
+                                 <th>Emergency Contacts</th>
+                                 <th>Role</th>
+                                 <th>Status</th>
+                                 <th>Last Login</th>
+                             </tr>
+                         </thead>
+                         <tbody>
+                             ${rowsHtml}
+                         </tbody>
+                     </table>
+                </body>
+                </html>
+            `;
+
+            reportWindow.document.open();
+            reportWindow.document.write(docHtml);
+            reportWindow.document.close();
+        }
+
+        function encodeHtml(value) {
+            if (value === null || value === undefined) {
+                return '';
+            }
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        // Sorting and filtering helpers
+        function initializeUserDirectoryControls() {
+            const sortSelect = document.getElementById('sortSelect');
+            if (sortSelect) {
+                sortSelect.addEventListener('change', (event) => {
+                    currentSortOption = event.target.value || 'recent';
+                    applyUserFiltersAndSort();
+                });
+            }
+
+            const collegeFilter = document.getElementById('collegeFilter');
+            const yearFilter = document.getElementById('yearFilter');
+            const residencyFilter = document.getElementById('residencyFilter');
+            const clearFiltersButton = document.getElementById('clearFiltersButton');
+
+            if (collegeFilter) {
+                collegeFilter.addEventListener('change', (event) => {
+                    userViewFilters.college = (event.target.value || '').toLowerCase();
+                    applyUserFiltersAndSort();
+                });
+            }
+            if (yearFilter) {
+                yearFilter.addEventListener('change', (event) => {
+                    userViewFilters.year = (event.target.value || '').toLowerCase();
+                    applyUserFiltersAndSort();
+                });
+            }
+            if (residencyFilter) {
+                residencyFilter.addEventListener('change', (event) => {
+                    userViewFilters.residency = (event.target.value || '').toLowerCase();
+                    applyUserFiltersAndSort();
+                });
+            }
+            if (clearFiltersButton) {
+                clearFiltersButton.addEventListener('click', () => {
+                    if (collegeFilter) collegeFilter.value = '';
+                    if (yearFilter) yearFilter.value = '';
+                    if (residencyFilter) residencyFilter.value = '';
+                    userViewFilters.college = '';
+                    userViewFilters.year = '';
+                    userViewFilters.residency = '';
+                    applyUserFiltersAndSort();
+                });
+            }
+
+            // Apply default view on load
+            applyUserFiltersAndSort();
+        }
+
+        function applyUserFiltersAndSort() {
+            const rows = document.querySelectorAll('.user-row');
+            if (!rows || !rows.length) {
+                toggleFilterEmptyState(false);
+                return;
+            }
+
+            let visibleCount = 0;
+            rows.forEach((row) => {
+                const college = (row.dataset.college || '').toLowerCase();
+                const year = (row.dataset.year || '').toLowerCase();
+                const residency = (row.dataset.residency || '').toLowerCase();
+
+                const collegeMatch = !userViewFilters.college || userViewFilters.college === college;
+                const yearMatch = !userViewFilters.year || userViewFilters.year === year;
+                const residencyMatch = !userViewFilters.residency || userViewFilters.residency === residency;
+
+                const shouldShow = collegeMatch && yearMatch && residencyMatch;
+                row.style.display = shouldShow ? '' : 'none';
+                if (shouldShow) {
+                    visibleCount += 1;
+                }
+            });
+
+            toggleFilterEmptyState(visibleCount === 0);
+            sortUserRows(currentSortOption);
+        }
+
+        function toggleFilterEmptyState(isEmpty) {
+            const emptyRow = document.getElementById('userFilterEmptyState');
+            if (!emptyRow) {
+                return;
+            }
+            emptyRow.classList.toggle('hidden', !isEmpty);
+        }
+
+        function sortUserRows(option = 'recent') {
+            const tbody = document.querySelector('.user-table tbody');
+            if (!tbody) {
+                return;
+            }
+            const rows = Array.from(tbody.querySelectorAll('.user-row'));
+            if (!rows.length) {
+                return;
+            }
+            const sortedRows = rows.sort((a, b) => compareUserRows(a, b, option));
+            sortedRows.forEach((row) => tbody.appendChild(row));
+        }
+
+        function compareUserRows(a, b, option) {
+            switch (option) {
+                case 'name_asc':
+                    return getRowNameValue(a).localeCompare(getRowNameValue(b));
+                case 'name_desc':
+                    return getRowNameValue(b).localeCompare(getRowNameValue(a));
+                case 'oldest':
+                    return getRowDateValue(a, 'updatedAt') - getRowDateValue(b, 'updatedAt');
+                case 'role':
+                    return getRoleRank(a.dataset.userType || '') - getRoleRank(b.dataset.userType || '') ||
+                        getRowNameValue(a).localeCompare(getRowNameValue(b));
+                case 'recent':
+                default:
+                    return getRowDateValue(b, 'updatedAt') - getRowDateValue(a, 'updatedAt');
+            }
+        }
+
+        function getRoleRank(role) {
+            const normalized = role.toLowerCase();
+            if (normalized === 'admin') return 0;
+            if (normalized.includes('dispatcher')) return 1;
+            return 2; // students and others
+        }
+
+        function getRowDateValue(row, attr) {
+            if (!row || !row.dataset) {
+                return 0;
+            }
+            const value = row.dataset[attr] || row.dataset[attr.toLowerCase()] || '';
+            const timestamp = Date.parse(value);
+            return Number.isNaN(timestamp) ? 0 : timestamp;
+        }
+
+        function getRowNameValue(row) {
+            if (!row) {
+                return '';
+            }
+            const raw = row.dataset.name || '';
+            return raw.toLowerCase();
         }
 
         // Archived Users Modal Functions
@@ -3279,6 +3915,15 @@
                     archiveUser(userId, userType, userName);
                 });
             });
+
+            // Initialize client-side sorting & filters
+            initializeUserDirectoryControls();
+
+            // Attach user report form handler
+            const reportForm = document.getElementById('userReportForm');
+            if (reportForm) {
+                reportForm.addEventListener('submit', handleUserReportFormSubmit);
+            }
             
             // Set up password validation
             const passwordField = document.getElementById('password');
@@ -3454,9 +4099,9 @@
                             formData.delete('confirm_password'); // not needed for API
 
                             // Normalize checkbox
-                            const emailVerifiedCheckbox = document.getElementById('email_verified');
+                            const emailVerifiedCheckbox = document.getElementById('is_verified');
                             if (emailVerifiedCheckbox) {
-                                formData.set('email_verified', emailVerifiedCheckbox.checked ? 'true' : 'false');
+                                formData.set('is_verified', emailVerifiedCheckbox.checked ? 'true' : 'false');
                             }
 
                             // Only send profile image if a new file was selected
@@ -3691,7 +4336,7 @@
                     document.getElementById('medinfo').value = editData.student_medinfo || '';
                     document.getElementById('address').value = editData.student_address || '';
                     document.getElementById('status').value = editData.student_status || '';
-                    document.getElementById('email_verified').checked = editData.email_verified || false;
+                    document.getElementById('is_verified').checked = editData.is_verified || false;
                     
                     // Ensure contact sections are visible
                     const primarySection = document.getElementById('primaryContactSection');
@@ -3880,5 +4525,98 @@
             }
         }
     </script>
+    
+    <!-- Footer -->
+    <footer class="bg-gradient-to-r from-slate-800 to-slate-900 text-white py-12">
+        <div class="max-w-6xl mx-auto px-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+
+                <div class="text-center">
+                    <div class="mb-4 flex justify-center">
+                        <a href="/developers" target="_blank">
+                            <div class="w-16 h-16 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center hover:from-red-600 hover:to-red-700 transition-all duration-300 shadow-lg">
+                                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                                </svg>
+                            </div>
+                        </a>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">Contact Us</h3>
+                    <p class="text-gray-300 leading-relaxed mb-3">Group - Eclipse</p>
+                    <a href="/developers" class="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-full hover:from-red-600 hover:to-red-700 transition-all duration-300 shadow-lg text-white">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </a>
+                </div>
+
+                <div class="text-center">
+                    <div class="mb-4 flex justify-center">
+                        <a href="https://www.facebook.com/UMakPH" target="_blank">
+                            <div class="w-16 h-16 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center hover:from-red-600 hover:to-red-700 transition-all duration-300 shadow-lg">
+                                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                </svg>
+                            </div>
+                        </a>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">UMAK</h3>
+                    <p class="text-gray-300 leading-relaxed mb-2">University of Makati</p>
+                    <p class="text-gray-300 text-sm leading-relaxed mb-2">J.P. Rizal Extension, West Rembo, 1644 City of Taguig, Metro Manila, Philippines</p>
+                    <p class="text-gray-300 text-sm">
+                        Email: <a href="mailto:info@umak.edu.ph" class="text-blue-300 hover:text-blue-200 underline">info@umak.edu.ph</a>
+                    </p>
+                </div>
+
+                <div class="text-center">
+                    <div class="mb-4 flex justify-center">
+                        <a href="mailto:ohso@umak.edu.ph" target="_blank">
+                            <div class="w-16 h-16 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center hover:from-red-600 hover:to-red-700 transition-all duration-300 shadow-lg">
+                                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                </svg>
+                            </div>
+                        </a>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">OHSO</h3>
+                    <p class="text-gray-300 leading-relaxed mb-2">Occupational Health and Safety Office</p>
+                    <div class="space-y-1 text-gray-300 text-sm">
+                        <p>
+                            Email: <a href="mailto:ohso@umak.edu.ph" class="text-blue-300 hover:text-blue-200 underline">ohso@umak.edu.ph</a>
+                        </p>
+                        <p>
+                            Direct Line: <a href="tel:0288820535" class="text-blue-300 hover:text-blue-200 underline">(02) 8882-0535</a>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="text-center">
+                    <div class="mb-4 flex justify-center">
+                        <a href="tel:09480763795" target="_blank">
+                            <div class="w-16 h-16 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center hover:from-red-600 hover:to-red-700 transition-all duration-300 shadow-lg">
+                                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16a1 1 0 011 1v8a1 1 0 01-1 1H4a1 1 0 01-1-1V7a1 1 0 011-1z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 20h8m-4-4v4"></path>
+                                </svg>
+                            </div>
+                        </a>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">CCIS</h3>
+                    <p class="text-gray-300 leading-relaxed mb-2">College of Computing and Information Sciences</p>
+                    <div class="space-y-1 text-gray-300 text-sm">
+                        <p>
+                            E-mail: <a href="mailto:umakccissc@umak.edu.ph" class="text-blue-300 hover:text-blue-200 underline">umakccissc@umak.edu.ph</a>
+                        </p>
+                        <p>
+                            Mobile No.: <a href="tel:09480763795" class="text-blue-300 hover:text-blue-200 underline">09480763795</a>
+                        </p>
+                    </div>
+                </div>		
+            </div>
+            <div class="mt-12 pt-8 border-t border-gray-700 text-center">
+                <p class="text-gray-400">&copy; {% if current_year %}{{ current_year }}{% else %}2024{% endif %} III-DINS, GROUP ECLIPSE. Emergency Alert System. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
 </body>
 </html>

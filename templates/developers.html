@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Developers - Alert System</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/sos.png') }}">
+  <style>
+    body {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      width: 100%;
+      min-height: 100vh;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.6;
+      }
+    }
+
+    @keyframes slideDown {
+      from {
+        transform: translateY(-20px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .page-wrapper {
+      width: 100%;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      padding: 60px 20px;
+    }
+
+    .main-content {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 50px;
+    }
+
+    .page-title {
+      font-size: 52px;
+      font-weight: 800;
+      color: #ffffff;
+      margin: 0 0 12px 0;
+      letter-spacing: -1px;
+      text-transform: uppercase;
+    }
+
+    .page-subtitle {
+      font-size: 22px;
+      color: #fbbf24;
+      margin: 0;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-bottom: 50px;
+      align-items: stretch;
+    }
+
+    .team-card {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border-radius: 16px;
+      padding: 32px 20px;
+      text-align: center;
+      border: 2px solid #334155;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+    }
+
+    .team-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #dc2626, #fbbf24, #dc2626);
+      background-size: 200% 100%;
+      animation: shimmer 3s linear infinite;
+    }
+
+    @keyframes shimmer {
+      0% {
+        background-position: -200% 0;
+      }
+      100% {
+        background-position: 200% 0;
+      }
+    }
+
+    .team-card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 12px 32px rgba(220, 38, 38, 0.3);
+      border-color: #dc2626;
+    }
+
+    .status-indicator {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 12px;
+      height: 12px;
+      background: #10b981;
+      border-radius: 50%;
+      box-shadow: 0 0 12px #10b981;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+      margin: 0 auto 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      color: #ffffff;
+      font-weight: 600;
+      border: 3px solid #fbbf24;
+      box-shadow: 0 4px 16px rgba(220, 38, 38, 0.4);
+    }
+
+    .member-name {
+      font-size: 20px;
+      font-weight: 700;
+      color: #ffffff;
+      margin: 0 0 8px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .member-role {
+      font-size: 14px;
+      color: #fbbf24;
+      margin: 0 0 auto 0;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding-bottom: 20px;
+    }
+
+    .contact-button {
+      background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+      color: #ffffff;
+      border: 2px solid #fbbf24;
+      border-radius: 8px;
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      width: 100%;
+      font-family: inherit;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-decoration: none;
+      display: block;
+    }
+
+    .contact-button:hover {
+      background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
+      box-shadow: 0 4px 16px rgba(220, 38, 38, 0.5);
+      transform: scale(1.05);
+    }
+
+    .contact-button:active {
+      transform: scale(0.98);
+    }
+
+    .emergency-contact {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border-radius: 16px;
+      padding: 48px 40px;
+      text-align: center;
+      border: 2px solid #dc2626;
+      box-shadow: 0 8px 32px rgba(220, 38, 38, 0.3);
+    }
+
+    .emergency-title {
+      font-size: 36px;
+      font-weight: 800;
+      color: #ffffff;
+      margin: 0 0 12px 0;
+      letter-spacing: -0.5px;
+      text-transform: uppercase;
+    }
+
+    .emergency-text {
+      font-size: 18px;
+      color: #fbbf24;
+      margin: 0 0 36px 0;
+      line-height: 1.6;
+      font-weight: 600;
+    }
+
+    .contact-info {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .info-item {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      font-size: 18px;
+      color: #ffffff;
+      font-weight: 600;
+      background: rgba(220, 38, 38, 0.1);
+      padding: 16px 24px;
+      border-radius: 8px;
+      border: 1px solid rgba(220, 38, 38, 0.3);
+      transition: all 0.2s ease;
+    }
+
+    .info-item:hover {
+      background: rgba(220, 38, 38, 0.2);
+      border-color: #dc2626;
+      transform: translateX(4px);
+    }
+
+    .info-item a {
+      color: #ffffff;
+      text-decoration: none;
+    }
+
+    .info-item a:hover {
+      color: #fbbf24;
+    }
+
+    .info-icon {
+      font-size: 28px;
+    }
+
+    .back-button {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+      color: #ffffff;
+      border: 2px solid #fbbf24;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      z-index: 1000;
+      box-shadow: 0 4px 16px rgba(220, 38, 38, 0.4);
+    }
+
+    .back-button svg {
+      width: 24px;
+      height: 24px;
+      stroke: #ffffff;
+    }
+
+    .back-button:hover {
+      background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
+      transform: scale(1.1);
+    }
+
+    @media (max-width: 768px) {
+      .page-title {
+        font-size: 36px;
+      }
+
+      .page-subtitle {
+        font-size: 16px;
+      }
+
+      .team-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+
+      .emergency-contact {
+        padding: 30px 20px;
+      }
+    }
+  </style>
+ </head>
+ <body>
+  <a href="/dashboard" class="back-button">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M19 12H5M12 19l-7-7 7-7"/>
+    </svg>
+  </a>
+  <div class="page-wrapper">
+   <div class="main-content">
+    <header class="header">
+     <h1 class="page-title">Get In Touch</h1>
+     <p class="page-subtitle">Connect with our expert team members from section III-DINS, Group Eclipse</p>
+    </header>
+    <div class="team-grid">
+     <div class="team-card">
+      <div class="status-indicator"></div>
+      <div class="avatar">
+       👨‍💻
+      </div>
+      <h3 class="member-name">Bantay, Sophia Mae</h3>
+      <p class="member-role">Full Stack Developer</p><a href="https://mail.google.com/mail/?view=cm&fs=1&to=sbantay.k12150533@umak.edu.ph" target="_blank" class="contact-button">Send Message</a>
+     </div>
+     <div class="team-card">
+      <div class="status-indicator"></div>
+      <div class="avatar">
+       👨‍💻
+      </div>
+      <h3 class="member-name">Billones, Julie May</h3>
+      <p class="member-role">Backend Developer</p><a href="https://mail.google.com/mail/?view=cm&fs=1&to=jbillones.k12149156@umak.edu.ph" target="_blank" class="contact-button">Send Message</a>
+     </div>
+     <div class="team-card">
+      <div class="status-indicator"></div>
+      <div class="avatar">
+       👨‍💻
+      </div>
+      <h3 class="member-name">Ciar, Mike Guiller</h3>
+      <p class="member-role">Frontend Developer</p><a href="https://mail.google.com/mail/?view=cm&fs=1&to=mciar.a12345318@umak.edu.ph" target="_blank" class="contact-button">Send Message</a>
+     </div>
+     <div class="team-card">
+      <div class="status-indicator"></div>
+      <div class="avatar">
+       👨‍💻
+      </div>
+      <h3 class="member-name">Lim, Patricia Bernadette</h3>
+      <p class="member-role">UI/UX Developer</p><a href="https://mail.google.com/mail/?view=cm&fs=1&to=plim.k12151589@umak.edu.ph" target="_blank" class="contact-button">Send Message</a>
+     </div>
+     <div class="team-card">
+      <div class="status-indicator"></div>
+      <div class="avatar">
+       👨‍💻
+      </div>
+      <h3 class="member-name">Soriano, Andrea Mae</h3>
+      <p class="member-role">Lead Developer</p><a href="https://mail.google.com/mail/?view=cm&fs=1&to=asoriano.k12149381@umak.edu.ph" target="_blank" class="contact-button">Send Message</a>
+     </div>
+    </div>
+    <div class="emergency-contact">
+     <h2 class="emergency-title">General Inquiries</h2>
+     <p class="emergency-text">We're here to help - reach out through any of these channels</p>
+     <div class="contact-info">
+      <div class="info-item"><span class="info-icon">📧</span> <a href="https://mail.google.com/mail/?view=cm&fs=1&to=eclipsealertsystem@gmail.com" target="_blank">eclipsealertsystem@gmail.com</a>
+      </div>
+      <div class="info-item"><span class="info-icon">📱</span> <a href="tel:09480763795">09480763795</a>
+      </div>
+      <div class="info-item"><span class="info-icon">📍</span> <span>J.P. Rizal Extension, West Rembo, 1644 City of Taguig, Metro Manila, Philippines</span>
+      </div>
+     </div>
+    </div>
+   </div>
+  </div>
+ </body>
+</html>
+
