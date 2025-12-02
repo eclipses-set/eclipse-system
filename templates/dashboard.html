@@ -6736,31 +6736,7 @@
             
             const chatInput = document.getElementById('chatInput');
             if (chatInput) {
-                chatInput.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        sendIncidentMessage();
-                    }
-                });
-                
-                chatInput.addEventListener('input', function() {
-                    this.style.height = 'auto';
-                    this.style.height = Math.min(this.scrollHeight, 80) + 'px';
-                });
-            }
-        });
-        
-        function scrollToBottom() {
-            const messagesContainer = document.getElementById('chatMessages');
-            if (messagesContainer) {
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }
-        }
-        
-        // Handle Enter key in chat input
-        document.addEventListener('DOMContentLoaded', function() {
-            const chatInput = document.getElementById('chatInput');
-            if (chatInput) {
+                // Handle Enter key once (send on Enter, newline on Shift+Enter)
                 chatInput.addEventListener('keypress', function(e) {
                     if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
@@ -6775,6 +6751,13 @@
                 });
             }
         });
+        
+        function scrollToBottom() {
+            const messagesContainer = document.getElementById('chatMessages');
+            if (messagesContainer) {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        }
         
         // Close chat when clicking outside
         document.addEventListener('click', function(event) {
@@ -6901,7 +6884,8 @@
                             <i class="fas fa-image"></i>
                         </button>
                         <textarea id="chatInput" placeholder="Type your message..." rows="1"></textarea>
-                        <button id="sendButton" onclick="sendIncidentMessage()">Send</button>
+                        <!-- Explicit type='button' to avoid form submission/page reload -->
+                        <button id="sendButton" type="button" onclick="sendIncidentMessage()">Send</button>
                     </div>
                     <div id="imagePreview" class="image-preview" style="display: none;">
                         <img id="previewImage" src="" alt="Preview">
