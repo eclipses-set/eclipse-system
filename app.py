@@ -1778,6 +1778,28 @@ def bulk_archive_incidents(incident_ids, admin_id, reason=None):
     return results
 
 # ---------------- ROUTES ---------------- #
+
+@app.route('/debug-supabase')
+def debug_supabase():
+    """
+    Health check route to verify Supabase connectivity in deployed environments.
+    Returns basic info about the connection and a sample query to accounts_admin.
+    """
+    try:
+        if supabase is None:
+            return "Supabase is None (failed to initialize)", 500
+
+        # Try a very small safe query
+        result = supabase.table('accounts_admin').select('admin_id').limit(1).execute()
+        row_count = len(result.data) if result.data else 0
+        return {
+            "status": "ok",
+            "rows": row_count
+        }, 200
+    except Exception as e:
+        return f"Error: {e}", 500
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """Admin login route with approval status handling"""
