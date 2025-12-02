@@ -35,6 +35,7 @@ SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_KEY')
 
 if not SUPABASE_URL or not SUPABASE_KEY:
+    # Fail fast if env vars are missing so Render logs show the problem clearly
     raise ValueError("Please set SUPABASE_URL and SUPABASE_KEY environment variables")
 
 # Initialize Supabase client
@@ -42,8 +43,12 @@ try:
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
     print("Supabase client initialized successfully")
 except Exception as e:
-    print(f"Error initializing Supabase client: {e}")
-    supabase = None
+    # Log detailed information and re-raise so the deployment fails loudly.
+    # This makes it easier to see *why* Supabase failed to initialize in Render logs.
+    print("Error initializing Supabase client:", e)
+    print("SUPABASE_URL:", repr(SUPABASE_URL))
+    print("SUPABASE_KEY length:", len(SUPABASE_KEY) if SUPABASE_KEY else 0)
+    raise
 
 # Table name for storing resolution summaries (can be overridden via environment)
 RESOLUTION_REPORTS_TABLE = os.getenv('RESOLUTION_REPORTS_TABLE', 'incident_resolution_reports')
