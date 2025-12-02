@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incident Resolution Form</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            box-sizing: border-box;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-size: 11px;
+        }
+        
+        @media print {
+            @page {
+                margin: 0.5in;
+            }
+            body {
+                margin: 0;
+                padding: 0;
+            }
+            .no-print {
+                display: none;
+            }
+        }
+        
+        .form-field {
+            border-bottom: 1px solid #000;
+            min-height: 18px;
+            padding: 2px 0;
+            color: #000;
+            font-size: 10px;
+        }
+        
+        .section-header {
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body class="bg-white min-h-full">
+    <div class="w-full bg-white p-8 mx-auto" style="max-width: 8.5in;">
+        <!-- Print Button -->
+        <div class="no-print mb-6 flex justify-end">
+            <button id="printBtn" class="px-8 py-3 font-bold transition-colors duration-200" style="background-color: #000; color: white; border: 2px solid #000; letter-spacing: 1px; text-transform: uppercase;" onmouseover="this.style.backgroundColor='#333'" onmouseout="this.style.backgroundColor='#000'" onclick="window.print()">
+                🖨️ Print Form
+            </button>
+        </div>
+
+        <!-- Logos -->
+        <div class="text-center mb-6">
+            <div class="flex items-center justify-center gap-6 mb-4">
+                <img src="{{ url_for('static', filename='images/ccis.png') }}" alt="CCIS" style="height: 60px; width: auto; object-fit: contain;">
+                <img src="{{ url_for('static', filename='images/eas.png') }}" alt="EAS" style="height: 60px; width: auto; object-fit: contain;">
+                <img src="{{ url_for('static', filename='images/ohso.png') }}" alt="OHSO" style="height: 60px; width: auto; object-fit: contain;">
+            </div>
+            <div style="border-top: 3px double #000; border-bottom: 3px double #000; padding: 8px 0; margin: 0 auto; max-width: 500px;">
+                <h1 class="text-2xl font-bold section-header" style="color: #000; letter-spacing: 2px; font-size: 1.5rem;" id="formTitle">INCIDENT RESOLUTION</h1>
+            </div>
+            <div style="margin-top: 10px; font-size: 0.65rem; color: #4b5563;">
+                Official Resolution Documentation
+            </div>
+        </div>
+
+        <!-- I. Resolution Metadata Section -->
+        <div class="mb-5">
+            <h2 class="text-base font-bold mb-2 pb-1 section-header" style="color: #000; border-bottom: 2px solid #000; letter-spacing: 2px; font-size: 0.95rem;">I. Resolution Metadata</h2>
+            <div class="space-y-2">
+                <div class="grid grid-cols-2 gap-x-6 gap-y-2">
+                    <div>
+                        <label class="block text-xs font-bold mb-0.5" style="color: #000; font-size: 0.7rem;">Resolution ID:</label>
+                        <div class="form-field" style="color: #000;">
+                            {{ report.resolved_id or 'N/A' }}
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold mb-1" style="color: #000;">Incident ID:</label>
+                        <div class="form-field" style="color: #000;">
+                            {{ report.icd_id or incident.icd_id or 'N/A' }}
+                        </div>
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-xs font-bold mb-1" style="color: #000;">Category:</label>
+                        <div class="form-field" style="color: #000;">
+                            {% if report.category or incident.icd_category %}
+                                {{ report.category or incident.icd_category }}{% if report.incident_type and report.incident_type != 'N/A' %} - {{ report.incident_type }}{% elif incident.icd_medical_type %} - {{ incident.icd_medical_type }}{% elif incident.icd_security_type %} - {{ incident.icd_security_type }}{% elif incident.icd_university_type %} - {{ incident.icd_university_type }}{% endif %}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold mb-1" style="color: #000;">Reported At:</label>
+                        <div class="form-field" style="color: #000;">
+                            {% if report.reported_at %}
+                                {{ report.reported_at|format_datetime }}
+                            {% elif incident.icd_timestamp %}
+                                {{ incident.icd_timestamp|format_datetime }}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold mb-1" style="color: #000;">Resolved At:</label>
+                        <div class="form-field" style="color: #000;">
+                            {% if report.resolved_at %}
+                                {{ report.resolved_at|format_datetime }}
+                            {% elif incident.resolved_timestamp %}
+                                {{ incident.resolved_timestamp|format_datetime }}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-xs font-bold mb-1" style="color: #000;">Response Time (minutes):</label>
+                        <div class="form-field" style="color: #000;">
+                            {% if report.response_minutes %}
+                                {% set hours = (report.response_minutes / 60)|int %}
+                                {% set minutes = (report.response_minutes % 60)|int %}
+                                {% if hours > 0 %}
+                                    {{ hours }} hour{{ 's' if hours != 1 else '' }}{% if minutes > 0 %}, {{ minutes }} minute{{ 's' if minutes != 1 else '' }}{% endif %}
+                                {% else %}
+                                    {{ minutes }} minute{{ 's' if minutes != 1 else '' }}
+                                {% endif %}
+                                ({{ report.response_minutes|round(1) }} minutes)
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- II. Student Information Section -->
+        <div class="mb-5">
+            <h2 class="text-base font-bold mb-2 pb-1 section-header" style="color: #000; border-bottom: 2px solid #000; letter-spacing: 2px; font-size: 0.95rem;">II. Student Information</h2>
+            <div class="grid grid-cols-2 gap-x-6 gap-y-2">
+                <div>
+                    <label class="block text-xs font-bold mb-1" style="color: #000;">Student ID:</label>
+                    <div class="form-field" style="color: #000;">
+                        {{ report.student_id or incident.student_number or 'N/A' }}
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold mb-1" style="color: #000;">Student Name:</label>
+                    <div class="form-field" style="color: #000;">
+                        {{ report.student_name or incident.student_name or 'N/A' }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- III. Responder Information Section -->
+        <div class="mb-5">
+            <h2 class="text-base font-bold mb-2 pb-1 section-header" style="color: #000; border-bottom: 2px solid #000; letter-spacing: 2px; font-size: 0.95rem;">III. Responder Information</h2>
+            <div class="grid grid-cols-2 gap-x-6 gap-y-2">
+                <div>
+                    <label class="block text-xs font-bold mb-1" style="color: #000;">Resolved By (User ID):</label>
+                    <div class="form-field" style="color: #000;">
+                        {{ report.resolved_by or 'N/A' }}
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold mb-1" style="color: #000;">Resolved By Name:</label>
+                    <div class="form-field" style="color: #000;">
+                        {{ report.resolved_by_name or 'N/A' }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Location / Coordinates Section -->
+        <div class="mb-5">
+            <h2 class="text-base font-bold mb-2 pb-1 section-header" style="color: #000; border-bottom: 2px solid #000; letter-spacing: 2px; font-size: 0.95rem;">Location / Coordinates</h2>
+            <div class="space-y-2">
+                <div>
+                    <label class="block text-xs font-bold mb-0.5" style="color: #000; font-size: 0.7rem;">Location:</label>
+                    <div class="form-field" style="color: #000;">
+                        {% if report.location_name and report.location_name != 'N/A' %}
+                            {{ report.location_name }}
+                        {% elif incident.computed_location_name and incident.computed_location_name != 'N/A' %}
+                            {{ incident.computed_location_name }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </div>
+                </div>
+                {% if (report.icd_lat and report.icd_lng) or (incident.icd_lat and incident.icd_lng) %}
+                <div>
+                    <label class="block text-xs font-bold mb-0.5" style="color: #000; font-size: 0.7rem;">Coordinates:</label>
+                    <div class="form-field" style="color: #000;">
+                        {% if report.icd_lat and report.icd_lng %}
+                            {{ "%.6f"|format(report.icd_lat|float) }}, {{ "%.6f"|format(report.icd_lng|float) }}
+                        {% elif incident.icd_lat and incident.icd_lng %}
+                            {{ "%.6f"|format(incident.icd_lat|float) }}, {{ "%.6f"|format(incident.icd_lng|float) }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- IV. Summary Notes Section -->
+        <div class="mb-5">
+            <h2 class="text-base font-bold mb-2 pb-1 section-header" style="color: #000; border-bottom: 2px solid #000; letter-spacing: 2px; font-size: 0.95rem;">IV. Summary Notes</h2>
+            <div class="border-2 p-2" style="border-color: #000; min-height: 150px; background-color: #fff;">
+                {% if report.summary_notes %}
+                    <div style="color: #000; white-space: pre-wrap; line-height: 1.4; font-size: 10px;">{{ report.summary_notes }}</div>
+                {% else %}
+                    <div style="color: #666; font-size: 0.65rem; font-style: italic;">
+                        [Long-form explanation and additional notes regarding the resolution]
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="mt-6 pt-3" style="border-top: 3px double #000;">
+            <div class="grid grid-cols-2 gap-6" style="color: #000; font-size: 0.7rem;">
+                <div>
+                    <span class="font-bold">Prepared By:</span>
+                    <div class="form-field mt-0.5">
+                        {{ admin_name or 'N/A' }}
+                    </div>
+                </div>
+                <div>
+                    <span class="font-bold">Date Generated:</span>
+                    <div class="form-field mt-0.5">
+                        {{ export_date or 'N/A' }}
+                    </div>
+                </div>
+            </div>
+            <div class="text-center mt-3" style="color: #666; font-size: 0.65rem;">
+                <em>This document contains confidential information. Handle in accordance with institutional policies.</em>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

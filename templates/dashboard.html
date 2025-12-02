@@ -6258,6 +6258,9 @@
         
         // ==================== INCIDENT-BASED CHAT SYSTEM ====================
         let currentChatIncident = null;
+        let currentChatIncidentData = null; // Cache incident data to avoid refetching
+        let currentChatStudentId = null; // Cache student ID for quick access
+        let selectedImageData = null; // Store selected image data URL
         let incidentChatPollInterval = null;
         let incidentListPollInterval = null;
         let incidentRealtimeSubscription = null;
@@ -6422,6 +6425,9 @@
                 });
         }
         
+        // Store incident data for quick access
+        let incidentListData = {};
+        
         function displayIncidentList(incidents) {
             const container = document.getElementById('incidentListContainer');
             if (!container) return;
@@ -6430,6 +6436,11 @@
                 container.innerHTML = '<div class="text-center text-gray-500 py-8">No incidents assigned to you</div>';
                 return;
             }
+            
+            // Store incident data including user_id for quick access
+            incidents.forEach(incident => {
+                incidentListData[incident.icd_id] = incident;
+            });
             
             container.innerHTML = incidents.map(incident => {
                 const timestamp = new Date(incident.icd_timestamp);
@@ -6459,21 +6470,42 @@
             messagesContainer.innerHTML = '<div class="chat-loading"><div class="spinner"></div><p>Loading messages...</p></div>';
             
             fetch(`/api/chat/incident/${incidentId}`)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        // Handle HTTP errors
+                        if (response.status === 403) {
+                            return response.json().then(data => {
+                                throw new Error(data.message || 'Permission denied');
+                            });
+                        }
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.success) {
+                        // Cache incident data and student ID for sending messages
+                        currentChatIncidentData = data.incident;
+                        if (data.incident && data.incident.user_id) {
+                            currentChatStudentId = data.incident.user_id;
+                        }
+                        
                         if (titleEl && data.student_name) {
                             titleEl.textContent = `Chat - ${data.student_name} (ICD_${incidentId})`;
                         }
                         displayIncidentMessages(data.messages);
-                        scrollToBottom();
+                        // Auto-scroll to the newest message after a brief delay to ensure DOM is updated
+                        setTimeout(() => {
+                            scrollToBottom();
+                        }, 100);
                     } else {
                         messagesContainer.innerHTML = `<div class="text-center text-red-500 py-4">${data.message || 'Error loading messages'}</div>`;
                     }
                 })
                 .catch(error => {
                     console.error('Error loading chat:', error);
-                    messagesContainer.innerHTML = '<div class="text-center text-red-500 py-4">Network error. Please try again.</div>';
+                    const errorMsg = error.message || 'Network error. Please try again.';
+                    messagesContainer.innerHTML = `<div class="text-center text-red-500 py-4">${errorMsg}</div>`;
                 });
         }
         
@@ -6523,63 +6555,138 @@
             const imagePreview = document.getElementById('imagePreview');
             const previewImage = document.getElementById('previewImage');
             
-            if (!input) return;
+            if (!input) {
+                console.error('Chat input not found');
+                return;
+            }
             
             const message = input.value.trim();
-            const hasImage = previewImage && previewImage.src && !previewImage.src.includes('data:image/svg');
+            // Check if we have a selected image (use stored data or preview)
+            const hasImage = selectedImageData || (previewImage && previewImage.src && !previewImage.src.includes('data:image/svg') && previewImage.src.startsWith('data:'));
             
+            // Validation: Prevent sending an empty message
             if (!message && !hasImage) {
+                return; // Silently return if both message and image are empty
+            }
+            
+            // Use cached student ID if available
+            let studentId = currentChatStudentId;
+            
+            // If not cached, try to get from cached incident data
+            if (!studentId && currentChatIncidentData && currentChatIncidentData.user_id) {
+                studentId = currentChatIncidentData.user_id;
+                currentChatStudentId = studentId; // Cache it
+            }
+            
+            // If still not available, try to get from incident list data
+            if (!studentId && incidentListData[currentChatIncident] && incidentListData[currentChatIncident].user_id) {
+                studentId = incidentListData[currentChatIncident].user_id;
+                currentChatStudentId = studentId; // Cache it
+            }
+            
+            // If still not available, try to fetch from a simpler endpoint
+            if (!studentId) {
+                // Use the incidents API endpoint which might have better permissions
+                fetch(`/api/incidents/${currentChatIncident}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.success && data.incident) {
+                            currentChatIncidentData = data.incident;
+                            studentId = data.incident.user_id;
+                            currentChatStudentId = studentId; // Cache it
+                            proceedWithSend(message, hasImage, studentId, input, imagePreview, previewImage);
+                        } else {
+                            alert('Error: Could not get incident details. ' + (data.error || data.message || ''));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error getting incident details:', error);
+                        alert('Error: Could not get incident details. Please try again.');
+                    });
+                return;
+            }
+            
+            proceedWithSend(message, hasImage, studentId, input, imagePreview, previewImage);
+        }
+        
+        function proceedWithSend(message, hasImage, studentId, input, imagePreview, previewImage) {
+            if (!studentId) {
+                alert('Error: Student ID not found');
+                return;
+            }
+            
+            // Get admin_id from session (embedded in template)
+            const adminId = '{{ session.get("admin_id", "") }}';
+            if (!adminId) {
+                alert('Error: Admin ID not found');
+                return;
+            }
+            
+            // Use new format: sender_id, sender_type, receiver_id, receiver_type
+            const messageData = {
+                incident_id: currentChatIncident,
+                sender_id: adminId,
+                sender_type: 'admin',
+                receiver_id: studentId,
+                receiver_type: 'student',
+                message: message
+            };
+            
+            if (hasImage) {
+                // Use stored image data if available, otherwise try to get from preview
+                const imageDataUrl = selectedImageData || (previewImage ? previewImage.src : null);
+                
+                if (!imageDataUrl || !imageDataUrl.startsWith('data:')) {
+                    alert('Error: Invalid image data. Please select the image again.');
                     return;
                 }
                 
-            // Get student_id from current incident
-            fetch(`/api/chat/incident/${currentChatIncident}`)
-                    .then(response => response.json())
-                    .then(data => {
-                    if (!data.success || !data.incident) {
-                        alert('Error: Could not get incident details');
-                return;
-            }
-            
-                    const studentId = data.incident.user_id;
-                    if (!studentId) {
-                        alert('Error: Student ID not found');
-                return;
-            }
-            
-                    const messageData = {
-                        incident_id: currentChatIncident,
-                        student_id: studentId,
-                        message: message
-                    };
-                    
-                    if (hasImage) {
-                        const canvas = document.createElement('canvas');
-                        const img = new Image();
-                        img.crossOrigin = 'anonymous';
-                        img.onload = function() {
-                            canvas.width = img.width;
-                            canvas.height = img.height;
-                            const ctx = canvas.getContext('2d');
-                            ctx.drawImage(img, 0, 0);
-                            const base64 = canvas.toDataURL('image/jpeg', 0.8);
-                            messageData.image = base64;
-                            messageData.image_name = 'image.jpg';
-                            messageData.image_type = 'image/jpeg';
-                            sendMessageRequest(messageData, input, imagePreview);
-                        };
-                        img.src = previewImage.src;
-                    } else {
-                        sendMessageRequest(messageData, input, imagePreview);
+                // Extract base64 data from data URL
+                let base64Data = imageDataUrl;
+                let imageType = 'image/jpeg';
+                let imageName = 'image.jpg';
+                
+                // If it's already a data URL, extract the base64 part
+                if (imageDataUrl.includes(',')) {
+                    const parts = imageDataUrl.split(',');
+                    base64Data = parts[1];
+                    const mimeMatch = parts[0].match(/data:([^;]+)/);
+                    if (mimeMatch) {
+                        imageType = mimeMatch[1];
+                        // Determine file extension from MIME type
+                        if (imageType.includes('png')) {
+                            imageName = 'image.png';
+                        } else if (imageType.includes('gif')) {
+                            imageName = 'image.gif';
+                        } else if (imageType.includes('webp')) {
+                            imageName = 'image.webp';
+                        }
                     }
-                })
-                .catch(error => {
-                    console.error('Error getting incident details:', error);
-                    alert('Error: Could not get incident details');
-                });
+                }
+                
+                messageData.image = base64Data;
+                messageData.image_name = imageName;
+                messageData.image_type = imageType;
+                sendMessageRequest(messageData, input, imagePreview);
+            } else {
+                sendMessageRequest(messageData, input, imagePreview);
+            }
         }
         
         function sendMessageRequest(messageData, input, imagePreview) {
+            // Disable send button to prevent duplicate sends
+            const sendButton = document.getElementById('sendButton');
+            const originalButtonText = sendButton ? sendButton.innerHTML : '';
+            if (sendButton) {
+                sendButton.disabled = true;
+                sendButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+            }
+            
             fetch('/api/chat/send', {
                 method: 'POST',
                 headers: {
@@ -6587,10 +6694,24 @@
                 },
                 body: JSON.stringify(messageData)
             })
-            .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
+            .then(response => {
+                if (!response.ok) {
+                    // Handle HTTP errors
+                    return response.json().then(data => {
+                        throw new Error(data.message || `HTTP error! status: ${response.status}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Clear the input field after sending
                     input.value = '';
+                    // Reset textarea height
+                    input.style.height = 'auto';
+                    
+                    // Clear image preview and stored image data
+                    selectedImageData = null;
                     if (imagePreview) {
                         imagePreview.style.display = 'none';
                         if (document.getElementById('previewImage')) {
@@ -6600,7 +6721,8 @@
                     if (document.getElementById('imageInput')) {
                         document.getElementById('imageInput').value = '';
                     }
-                    // Reload messages
+                    
+                    // Reload messages immediately to show the new message
                     if (currentChatIncident) {
                         loadIncidentChat(currentChatIncident);
                     }
@@ -6610,7 +6732,14 @@
             })
             .catch(error => {
                 console.error('Error sending message:', error);
-                alert('Network error. Please try again.');
+                alert('Error sending message: ' + (error.message || 'Network error. Please try again.'));
+            })
+            .finally(() => {
+                // Always re-enable send button, even on error
+                if (sendButton) {
+                    sendButton.disabled = false;
+                    sendButton.innerHTML = originalButtonText || 'Send';
+                }
             });
         }
         
@@ -6634,7 +6763,7 @@
                 if (currentChatIncident === incidentId) {
                     loadIncidentChat(incidentId);
                 }
-            }, 5000); // Poll every 5 seconds
+            }, 2000); // Poll every 2 seconds for real-time updates
         }
         
         function stopIncidentChatPolling() {
@@ -6684,15 +6813,20 @@
 
         function handleImageSelect(event) {
             const file = event.target.files[0];
-            if (!file) return;
+            if (!file) {
+                selectedImageData = null;
+                return;
+            }
             
             if (!file.type.startsWith('image/')) {
                 alert('Please select an image file');
+                selectedImageData = null;
                 return;
             }
             
             if (file.size > 5 * 1024 * 1024) {
                 alert('Image size must be less than 5MB');
+                selectedImageData = null;
                 return;
             }
             
@@ -6701,17 +6835,26 @@
                 const preview = document.getElementById('imagePreview');
                 const previewImage = document.getElementById('previewImage');
                 if (preview && previewImage) {
-                    previewImage.src = e.target.result;
+                    // Store the data URL for later use
+                    selectedImageData = e.target.result;
+                    previewImage.src = selectedImageData;
                     preview.style.display = 'block';
                 }
+            };
+            reader.onerror = function() {
+                alert('Error reading image file. Please try again.');
+                selectedImageData = null;
             };
             reader.readAsDataURL(file);
         }
 
         function removeImagePreview() {
+            selectedImageData = null;
             const preview = document.getElementById('imagePreview');
             const imageInput = document.getElementById('imageInput');
+            const previewImage = document.getElementById('previewImage');
             if (preview) preview.style.display = 'none';
+            if (previewImage) previewImage.src = '';
             if (imageInput) imageInput.value = '';
         }
         
@@ -6755,8 +6898,14 @@
         function scrollToBottom() {
             const messagesContainer = document.getElementById('chatMessages');
             if (messagesContainer) {
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }
+                // Smooth scroll to bottom
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                // Also try scrollIntoView for better browser compatibility
+                const lastMessage = messagesContainer.lastElementChild;
+                if (lastMessage) {
+                    lastMessage.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                }
+            }
         }
         
         // Close chat when clicking outside

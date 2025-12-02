@@ -464,17 +464,17 @@
                         <i class="fas fa-bars text-xl"></i>
                     </button>
                 
-                    <div class="flex items-center space-x-3 md:space-x-4 lg:space-x-6">
-                        <div class="hidden sm:flex items-center space-x-2 bg-gray-800 px-3 py-1.5 rounded-full">
-                            <div class="w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse"></div>
-                            <span class="text-xs font-medium text-green-400">Online</span>
+                    <div class="flex items-center space-x-2 md:space-x-4 lg:space-x-6">
+                        <div class="hidden sm:flex items-center space-x-2">
+                            <div class="w-3 h-3 md:w-4 md:h-4 bg-green-400 rounded-full animate-pulse"></div>
+                            <span class="text-xs md:text-sm font-medium text-green-300">System Online</span>
                         </div>
                         
                         <div class="relative">
-                            <button id="alertsButton" 
+                            <button id="alertsButton" onclick="highlightAlertNotifications()" 
                                     onmouseenter="showAlertsTooltip(this)" 
                                     onmouseleave="hideAlertsTooltip(this)"
-                                    class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 md:px-4 md:py-2.5 rounded-lg font-semibold transition-all text-xs md:text-sm shadow-lg hover:shadow-red-500/25">
+                                    class="bg-red-600 hover:bg-red-700 text-white px-2 py-1.5 md:px-4 md:py-2 rounded-lg font-medium transition-colors text-xs md:text-sm">
                                 <i class="fas fa-bell md:mr-2"></i>
                                 <span class="hidden sm:inline">Alerts </span>({{ active_alerts_count or 0 }})
                             </button>
@@ -488,7 +488,7 @@
                                         <span>Active Alerts:</span>
                                     </div>
                                     <span class="tooltip-value">
-                                        <span id="tooltipActiveCount" class="tooltip-badge active">{{ active_incidents or 0 }}</span>
+                                        <span id="tooltipActiveCount" class="tooltip-badge active">0</span>
                                     </span>
                                 </div>
                                 <div class="tooltip-item">
@@ -497,7 +497,7 @@
                                         <span>Pending Alerts:</span>
                                     </div>
                                     <span class="tooltip-value">
-                                        <span id="tooltipPendingCount" class="tooltip-badge pending">{{ pending_incidents or 0 }}</span>
+                                        <span id="tooltipPendingCount" class="tooltip-badge pending">0</span>
                                     </span>
                                 </div>
                             </div>
@@ -724,8 +724,12 @@
                                 
                                 <div>
                                     <label class="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
-                                    <input type="email" name="email" value="{{ admin.admin_email }}" required
-                                        class="form-input w-full text-sm">
+                                    <div class="form-input w-full text-sm bg-gray-100 text-gray-700 cursor-not-allowed">
+                                        {{ admin.admin_email }}
+                                    </div>
+                                    <p class="mt-1.5 text-xs text-gray-500">
+                                        <i class="fas fa-lock mr-1"></i>Managed by system administrators
+                                    </p>
                                 </div>
                                 
                                 <div>

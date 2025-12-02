@@ -1632,6 +1632,7 @@
                                         <form method="POST" class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center" onsubmit="return handleStatusUpdate(this);">
                                         <input type="hidden" name="incident_id" value="{{ incident.icd_id }}">
                                         <input type="hidden" name="current_status_filter" value="{{ status_filter }}">
+                                        <input type="hidden" name="current_category_filter" value="{{ category_filter }}">
                                         <input type="hidden" name="current_search_term" value="{{ search_term }}">
                                         <input type="hidden" name="current_sort_order" value="{{ sort_order }}">
                                             <input type="hidden" name="update" value="1">
@@ -2882,9 +2883,8 @@
                     const reportType = result.value.reportType;
                     
                     if (reportType === 'resolved') {
-                        // For resolved report, check if incident is resolved and show resolution bundle
-                        // For now, just open the regular PDF (which includes resolution if available)
-                        const pdfUrl = `/incident/${incidentId}/export-pdf`;
+                        // For resolved report, show individual resolution report
+                        const pdfUrl = `/incident/${incidentId}/resolution-report`;
                         window.open(pdfUrl, '_blank');
                     } else {
                         // Just report - regular incident PDF

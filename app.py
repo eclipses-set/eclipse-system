@@ -20,6 +20,7 @@ import time
 import io
 import csv
 from collections import defaultdict
+import requests
 
 # Load environment variables
 load_dotenv()
@@ -60,8 +61,18 @@ def get_philippines_time():
     """Get current time in Philippines timezone"""
     return datetime.now(PHILIPPINES_TZ)
 
-def get_location_name_from_coords(lat, lng):
+# Cache for geocoding results to avoid repeated API calls
+_geocoding_cache = {}
+
+def get_location_name_from_coords(lat, lng, use_cache=True):
     """Get location name from latitude and longitude using reverse geocoding"""
+    # Round coordinates to 6 decimal places for cache key (about 0.1m precision)
+    cache_key = (round(float(lat), 6), round(float(lng), 6))
+    
+    # Check cache first
+    if use_cache and cache_key in _geocoding_cache:
+        return _geocoding_cache[cache_key]
+    
     try:
         # Use OpenStreetMap Nominatim API for reverse geocoding (free, no API key needed)
         # Add a small delay to respect rate limits (1 request per second)
@@ -74,77 +85,98 @@ def get_location_name_from_coords(lat, lng):
             'Referer': 'https://umak.edu.ph'
         }
         
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=headers, timeout=15)
         
         if response.status_code != 200:
             print(f"Geocoding API returned status {response.status_code}: {response.text[:200]}")
-            return None
-        
-        data = response.json()
-        
-        if not data:
-            print(f"No data returned from geocoding API")
-            return None
-        
-        # Check if we have a display_name (most reliable and complete)
-        if data.get('display_name'):
-            display_name = data['display_name'].strip()
-            if display_name:
-                print(f"Using display_name: {display_name}")
-                return display_name
-        
-        # Fallback to building address from address components
-        if data.get('address'):
-            addr = data['address']
-            location_parts = []
+            result = None
+        else:
+            data = response.json()
             
-            # Build location name from most specific to least specific
-            if addr.get('house_number'):
-                location_parts.append(str(addr['house_number']))
-            if addr.get('road') or addr.get('street'):
-                road = addr.get('road') or addr.get('street')
-                if road:
-                    location_parts.append(road)
-            if addr.get('suburb') or addr.get('neighbourhood'):
-                suburb = addr.get('suburb') or addr.get('neighbourhood')
-                if suburb:
-                    location_parts.append(suburb)
-            if addr.get('city_district') or addr.get('district'):
-                district = addr.get('city_district') or addr.get('district')
-                if district and district not in location_parts:
-                    location_parts.append(district)
-            if addr.get('city') or addr.get('town') or addr.get('village'):
-                city = addr.get('city') or addr.get('town') or addr.get('village')
-                if city and city not in location_parts:
-                    location_parts.append(city)
-            if addr.get('municipality'):
-                municipality = addr['municipality']
-                if municipality and municipality not in location_parts:
-                    location_parts.append(municipality)
-            if addr.get('state') or addr.get('region'):
-                state = addr.get('state') or addr.get('region')
-                if state and state not in location_parts:
-                    location_parts.append(state)
-            
-            if location_parts:
-                location_name = ', '.join(location_parts)
-                print(f"Built location name from address components: {location_name}")
-                return location_name
+            if not data:
+                print(f"No data returned from geocoding API for lat={lat}, lng={lng}")
+                result = None
+            else:
+                # Check if we have a display_name (most reliable and complete)
+                if data.get('display_name'):
+                    display_name = data['display_name'].strip()
+                    if display_name:
+                        print(f"Geocoding success: {display_name[:100]}")
+                        result = display_name
+                    else:
+                        result = None
+                else:
+                    # Fallback to building address from address components
+                    if data.get('address'):
+                        addr = data['address']
+                        location_parts = []
+                        
+                        # Build location name from most specific to least specific
+                        if addr.get('house_number'):
+                            location_parts.append(str(addr['house_number']))
+                        if addr.get('road') or addr.get('street'):
+                            road = addr.get('road') or addr.get('street')
+                            if road:
+                                location_parts.append(road)
+                        if addr.get('suburb') or addr.get('neighbourhood'):
+                            suburb = addr.get('suburb') or addr.get('neighbourhood')
+                            if suburb:
+                                location_parts.append(suburb)
+                        if addr.get('city_district') or addr.get('district'):
+                            district = addr.get('city_district') or addr.get('district')
+                            if district and district not in location_parts:
+                                location_parts.append(district)
+                        if addr.get('city') or addr.get('town') or addr.get('village'):
+                            city = addr.get('city') or addr.get('town') or addr.get('village')
+                            if city and city not in location_parts:
+                                location_parts.append(city)
+                        if addr.get('municipality'):
+                            municipality = addr['municipality']
+                            if municipality and municipality not in location_parts:
+                                location_parts.append(municipality)
+                        if addr.get('state') or addr.get('region'):
+                            state = addr.get('state') or addr.get('region')
+                            if state and state not in location_parts:
+                                location_parts.append(state)
+                        
+                        if location_parts:
+                            location_name = ', '.join(location_parts)
+                            print(f"Geocoding success (from components): {location_name[:100]}")
+                            result = location_name
+                        else:
+                            result = None
+                    elif data.get('name'):
+                        # If we have a name field, use it
+                        name = data['name'].strip()
+                        if name:
+                            print(f"Geocoding success (from name): {name[:100]}")
+                            result = name
+                        else:
+                            result = None
+                    else:
+                        print(f"No usable location name found in geocoding response for lat={lat}, lng={lng}")
+                        result = None
         
-        # If we have a name field, use it
-        if data.get('name'):
-            name = data['name'].strip()
-            if name:
-                print(f"Using name field: {name}")
-                return name
+        # Cache the result (even if None, to avoid repeated failed calls)
+        if use_cache:
+            _geocoding_cache[cache_key] = result
         
-        print(f"No usable location name found in geocoding response")
-        return None
+        return result
     except requests.exceptions.Timeout:
         print(f"Geocoding API timeout for lat={lat}, lng={lng}")
+        if use_cache:
+            _geocoding_cache[cache_key] = None
         return None
     except requests.exceptions.RequestException as e:
-        print(f"Geocoding API request error: {e}")
+        print(f"Geocoding API request error for lat={lat}, lng={lng}: {e}")
+        if use_cache:
+            _geocoding_cache[cache_key] = None
+        return None
+    except Exception as e:
+        print(f"Unexpected error in geocoding for lat={lat}, lng={lng}: {e}")
+        if use_cache:
+            _geocoding_cache[cache_key] = None
+        return None
         return None
     except json.JSONDecodeError as e:
         print(f"Geocoding API returned invalid JSON: {e}")
@@ -179,10 +211,31 @@ def safe_get_filter(data, key, default='N/A'):
 
 @app.template_filter('format_admin_id')
 def format_admin_id_filter(admin_id):
-    """Format admin ID with leading zeros"""
+    """Format admin ID with leading zeros - handles various formats from database"""
+    if not admin_id:
+        return "ADM-0000"
+    
     try:
-        return f"ADM-{int(admin_id):04d}"
+        # If admin_id is already in format like "ADM00001" or "ADM-00001", extract the number
+        admin_id_str = str(admin_id).strip()
+        
+        # Remove "ADM-" or "ADM" prefix if present
+        if admin_id_str.upper().startswith('ADM-'):
+            admin_id_str = admin_id_str[4:]
+        elif admin_id_str.upper().startswith('ADM'):
+            admin_id_str = admin_id_str[3:]
+        
+        # Try to extract numeric part
+        numeric_part = ''.join(filter(str.isdigit, admin_id_str))
+        
+        if numeric_part:
+            # Format with leading zeros: ADM-00001
+            return f"ADM-{int(numeric_part):05d}"
+        else:
+            # If no numeric part found, try to convert the whole thing
+            return f"ADM-{int(admin_id_str):05d}"
     except (ValueError, TypeError):
+        # If conversion fails, return as-is with ADM- prefix
         return f"ADM-{admin_id}"
 
 @app.template_filter('get_initials')
@@ -425,8 +478,15 @@ def get_admin_by_id(admin_id):
     try:
         # Convert to string for consistency
         admin_id_str = str(admin_id)
+        # Explicitly select all fields including admin_id to ensure it's in the result
         result = supabase.table('accounts_admin').select('*').eq('admin_id', admin_id_str).execute()
-        return result.data[0] if result.data else None
+        if result.data and len(result.data) > 0:
+            admin = result.data[0]
+            # Ensure admin_id is present in the returned data
+            if 'admin_id' not in admin:
+                admin['admin_id'] = admin_id_str
+            return admin
+        return None
     except Exception as e:
         print(f"Error fetching admin: {e}")
         return None
@@ -4071,13 +4131,14 @@ def mark_pending():
         return redirect(url_for('dashboard'))
     
     try:
-        # Get current status for logging
-        current_result = supabase.table('alert_incidents').select('icd_status').eq('icd_id', incident_id).execute()
+        # Get current incident data (including user_id for chat message)
+        current_result = supabase.table('alert_incidents').select('icd_status, user_id').eq('icd_id', incident_id).execute()
         if not current_result.data:
             flash('Incident not found', 'error')
             return redirect(url_for('dashboard'))
             
         old_status = current_result.data[0]['icd_status']
+        student_id = current_result.data[0].get('user_id')
         
         # Update incident status
         now = get_philippines_time().isoformat()
@@ -4102,6 +4163,38 @@ def mark_pending():
                 old_status,
                 'Pending'
             )
+            
+            # Get admin full name for the chat message
+            admin_fullname = session.get('admin_name', 'Admin')
+            try:
+                admin_result = supabase.table('accounts_admin').select('admin_fullname').eq('admin_id', session['admin_id']).limit(1).execute()
+                if admin_result.data and admin_result.data[0].get('admin_fullname'):
+                    admin_fullname = admin_result.data[0]['admin_fullname']
+            except Exception as e:
+                print(f"Error fetching admin full name: {e}")
+                # Use session admin_name as fallback
+            
+            # Send chat message to student if student_id exists
+            if student_id:
+                try:
+                    message = f"Hello, your alert has been received. Admin {admin_fullname} has taken charge of your case and marked it as Pending. Please wait while we assist you."
+                    send_result = send_chat_message(
+                        incident_id=incident_id,
+                        sender_id=session['admin_id'],
+                        sender_type='admin',
+                        receiver_id=student_id,
+                        receiver_type='student',
+                        message=message
+                    )
+                    if send_result:
+                        print(f"Chat message sent successfully to student {student_id} for incident {incident_id}")
+                    else:
+                        print(f"Failed to send chat message to student {student_id} for incident {incident_id}")
+                except Exception as chat_error:
+                    # Don't fail the pending action if chat message fails
+                    print(f"Error sending chat message: {chat_error}")
+                    import traceback
+                    traceback.print_exc()
             
             flash(f'Incident ICD_9100{incident_id} has been set to pending!', 'success')
         else:
@@ -4295,6 +4388,10 @@ def profile():
         flash('Admin account not found.', 'error')
         return redirect(url_for('logout'))
     
+    # Ensure admin_id is present in admin object (fallback to session value)
+    if 'admin_id' not in admin or not admin.get('admin_id'):
+        admin['admin_id'] = admin_id
+    
     # Check if profile image exists
     profile_image_exists = False
     if admin.get('admin_profile') and admin['admin_profile'] != 'default.png':
@@ -4304,22 +4401,23 @@ def profile():
     # Handle profile information update
     if request.method == 'POST' and 'update_profile' in request.form:
         full_name = request.form.get('full_name', '').strip()
-        email = request.form.get('email', '').strip()
+        # Email is read-only and managed by system administrators - use existing email
+        email = admin.get('admin_email', '')
         username = request.form.get('username', '').strip()
         
-        # Validate form data
-        if not all([full_name, email, username]):
-            flash('All fields are required.', 'error')
+        # Validate form data (email is not required from form since it's read-only)
+        if not all([full_name, username]):
+            flash('Full name and username are required.', 'error')
         elif check_username_exists(username, admin_id):
             flash('Username already exists. Please choose a different one.', 'error')
         else:
-            # Update profile
+            # Update profile (email remains unchanged)
             result = update_admin_profile(admin_id, full_name, email, username)
             if result:
                 # Update session data
                 session['admin_name'] = full_name
                 admin['admin_fullname'] = full_name
-                admin['admin_email'] = email
+                # admin_email remains unchanged (read-only)
                 admin['admin_user'] = username
                 flash('Profile updated successfully!', 'success')
             else:
@@ -5911,32 +6009,62 @@ def api_get_chat_history(student_id):
 
 @app.route('/api/chat/send', methods=['POST'])
 def api_send_chat_message():
-    """API endpoint to send a chat message with optional image"""
+    """API endpoint to send a chat message with optional image
+    Accepts both formats:
+    - New format: sender_id, sender_type, receiver_id, receiver_type
+    - Legacy format: student_id (for backward compatibility)
+    """
     if 'admin_id' not in session:
         return jsonify({'success': False, 'message': 'Unauthorized'}), 401
     
     try:
         data = request.get_json()
         incident_id = data.get('incident_id')
-        student_id = data.get('student_id')
         message = data.get('message', '').strip()
         image_base64 = data.get('image')
         image_name = data.get('image_name', 'image.jpg')
         image_type = data.get('image_type', 'image/jpeg')
         
-        if not incident_id or not student_id:
-            return jsonify({'success': False, 'message': 'Missing required fields'}), 400
+        admin_id = session['admin_id']
+        
+        # Support new format: sender_id, sender_type, receiver_id, receiver_type
+        sender_id = data.get('sender_id')
+        sender_type = data.get('sender_type')
+        receiver_id = data.get('receiver_id')
+        receiver_type = data.get('receiver_type')
+        
+        # Legacy format support: student_id (for backward compatibility)
+        student_id = data.get('student_id')
+        
+        # Determine sender and receiver based on format
+        if sender_id and sender_type and receiver_id and receiver_type:
+            # New format
+            if sender_type not in ['admin', 'student'] or receiver_type not in ['admin', 'student']:
+                return jsonify({'success': False, 'message': 'Invalid sender_type or receiver_type. Must be "admin" or "student"'}), 400
+        elif student_id:
+            # Legacy format: admin sending to student
+            sender_id = admin_id
+            sender_type = 'admin'
+            receiver_id = student_id
+            receiver_type = 'student'
+        else:
+            return jsonify({'success': False, 'message': 'Missing required fields: either (sender_id, sender_type, receiver_id, receiver_type) or student_id'}), 400
+        
+        if not incident_id:
+            return jsonify({'success': False, 'message': 'Missing required field: incident_id'}), 400
         
         # Must have either message or image
         if not message and not image_base64:
             return jsonify({'success': False, 'message': 'Message or image is required'}), 400
         
-        admin_id = session['admin_id']
-        admin_name = session.get('admin_name', 'Admin')
+        # Validate permissions: if admin is sender, check if they can edit the incident
+        if sender_type == 'admin' and str(sender_id) != str(admin_id):
+            return jsonify({'success': False, 'message': 'Unauthorized: You can only send messages as yourself'}), 403
         
-        can_edit, edit_message = can_admin_edit_incident(incident_id, admin_id)
-        if not can_edit:
-            return jsonify({'success': False, 'message': f'Permission denied: {edit_message}'}), 403
+        if sender_type == 'admin':
+            can_edit, edit_message = can_admin_edit_incident(incident_id, sender_id)
+            if not can_edit:
+                return jsonify({'success': False, 'message': f'Permission denied: {edit_message}'}), 403
         
         # Handle image upload if provided
         image_url = None
@@ -5988,10 +6116,10 @@ def api_send_chat_message():
         # Send message
         result = send_chat_message(
             incident_id=incident_id,
-            sender_id=admin_id,
-            sender_type='admin',
-            receiver_id=student_id,
-            receiver_type='student',
+            sender_id=sender_id,
+            sender_type=sender_type,
+            receiver_id=receiver_id,
+            receiver_type=receiver_type,
             message=message,
             image_url=image_url
         )
@@ -6128,7 +6256,25 @@ def api_get_incident_chat(incident_id):
     try:
         admin_id = session['admin_id']
         
+        # For chat, allow viewing if:
+        # 1. Admin can view the incident normally, OR
+        # 2. Admin has sent/received messages in this chat (more lenient for chat access)
         can_view, view_message = can_admin_view_incident(incident_id, admin_id)
+        
+        # If normal view check fails, check if admin has participated in this chat
+        if not can_view:
+            try:
+                # Check if admin has any messages in this incident's chat (as sender or receiver)
+                sender_check = supabase.table('chat_messages').select('id').eq('incident_id', str(incident_id)).eq('sender_id', str(admin_id)).limit(1).execute()
+                receiver_check = supabase.table('chat_messages').select('id').eq('incident_id', str(incident_id)).eq('receiver_id', str(admin_id)).limit(1).execute()
+                if (sender_check.data and len(sender_check.data) > 0) or (receiver_check.data and len(receiver_check.data) > 0):
+                    # Admin has participated in chat, allow viewing
+                    can_view = True
+                    view_message = "Admin has participated in this chat"
+            except Exception as chat_check_error:
+                print(f"Error checking chat participation: {chat_check_error}")
+                # Fall through to return 403
+        
         if not can_view:
             return jsonify({'success': False, 'message': view_message}), 403
         
@@ -6136,12 +6282,20 @@ def api_get_incident_chat(incident_id):
             return jsonify({'success': False, 'message': 'Chat table does not exist'}), 500
         
         # Get ALL messages for this incident - no limit, no date filter
-        result = supabase.table('chat_messages').select('*').eq('incident_id', str(incident_id)).order('timestamp', desc=False).execute()
-        
-        messages = result.data or []
+        try:
+            result = supabase.table('chat_messages').select('*').eq('incident_id', str(incident_id)).order('timestamp', desc=False).execute()
+            messages = result.data or []
+        except Exception as e:
+            print(f"Error fetching chat messages: {e}")
+            import traceback
+            traceback.print_exc()
+            messages = []
         
         # Sort by timestamp ascending to ensure chronological order
-        messages.sort(key=lambda x: x.get('timestamp', '') or x.get('created_at', ''))
+        try:
+            messages.sort(key=lambda x: x.get('timestamp', '') or x.get('created_at', ''))
+        except Exception as e:
+            print(f"Error sorting messages: {e}")
         
         # Mark all messages for this incident as read where admin is receiver
         try:
@@ -6152,20 +6306,25 @@ def api_get_incident_chat(incident_id):
             print(f"Error marking messages as read: {e}")
         
         # Get incident details for the response
+        incident = None
+        student_name = 'Unknown Student'
         try:
             incident_result = supabase.table('alert_incidents').select('*').eq('icd_id', str(incident_id)).limit(1).execute()
             incident = incident_result.data[0] if incident_result.data else None
             
             # Get student name
-            student_name = 'Unknown Student'
             if incident and incident.get('user_id'):
                 try:
                     student_result = supabase.table('accounts_student').select('full_name').eq('user_id', str(incident.get('user_id'))).limit(1).execute()
                     if student_result.data:
                         student_name = student_result.data[0].get('full_name', 'Unknown Student')
-                except:
-                    pass
-        except:
+                except Exception as e:
+                    print(f"Error fetching student name: {e}")
+                    student_name = 'Unknown Student'
+        except Exception as e:
+            print(f"Error fetching incident details: {e}")
+            import traceback
+            traceback.print_exc()
             incident = None
             student_name = 'Unknown Student'
         
@@ -6179,7 +6338,12 @@ def api_get_incident_chat(incident_id):
         print(f"Error getting chat history: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return jsonify({'success': False, 'message': f'Server error: {str(e)}'}), 500
+
+@app.route('/chat/conversation/<incident_id>', methods=['GET'])
+def chat_conversation(incident_id):
+    """Alias for /api/chat/incident/<incident_id> to match user specification"""
+    return api_get_incident_chat(incident_id)
 
 @app.route('/api/chat/read/<incident_id>', methods=['PUT'])
 def api_mark_incident_read(incident_id):
@@ -6477,6 +6641,8 @@ def incident_management():
             params = {}
             if request.form.get('current_status') and request.form.get('current_status') != 'All':
                 params['status'] = request.form.get('current_status')
+            if request.form.get('current_category') and request.form.get('current_category') != 'All':
+                params['category'] = request.form.get('current_category')
             if request.form.get('current_search'):
                 params['search'] = request.form.get('current_search')
             if request.form.get('current_sort') and request.form.get('current_sort') != 'recent':
@@ -6545,6 +6711,8 @@ def incident_management():
             params = {}
             if request.form.get('current_status_filter') and request.form.get('current_status_filter') != 'All':
                 params['status'] = request.form.get('current_status_filter')
+            if request.form.get('current_category_filter') and request.form.get('current_category_filter') != 'All':
+                params['category'] = request.form.get('current_category_filter')
             if request.form.get('current_search_term'):
                 params['search'] = request.form.get('current_search_term')
             if request.form.get('current_sort_order') and request.form.get('current_sort_order') != 'recent':
@@ -6568,17 +6736,32 @@ def incident_management():
             student_details = None
     # Get filter parameters
     status_filter = request.args.get('status', 'All')
+    category_filter = request.args.get('category', 'All')
     search_term = request.args.get('search', '')
     sort_order = request.args.get('sort', 'recent')
     
     # Build query for incidents with joins
     try:
+        # Get unique icd_category values from database for dropdown
+        all_incidents_for_categories = supabase.table('alert_incidents').select('icd_category').execute()
+        categories_set = set()
+        if all_incidents_for_categories.data:
+            for incident in all_incidents_for_categories.data:
+                category = incident.get('icd_category')
+                if category and category.strip():
+                    categories_set.add(category.strip())
+        categories_list = sorted(list(categories_set))
+        
         # Get base incidents data
         query = supabase.table('alert_incidents').select('*')
         
         # Apply status filter
         if status_filter != 'All':
             query = query.eq('icd_status', status_filter)
+        
+        # Apply category filter
+        if category_filter != 'All':
+            query = query.eq('icd_category', category_filter)
         
         # Apply search filter (we'll filter in Python due to Supabase limitations)
         incidents_result = query.execute()
@@ -6655,12 +6838,15 @@ def incident_management():
         resolved_incidents = 0
         cancelled_incidents = 0
         active_alerts_count = 0
+        categories_list = []
         flash(f'Error loading incident data: {str(e)}', 'error')
     
     return render_template('incident_management.html',
                          incidents=processed_incidents,
                          student_details=student_details,
                          status_filter=status_filter,
+                         category_filter=category_filter,
+                         categories_list=categories_list,
                          search_term=search_term,
                          sort_order=sort_order,
                          total_incidents=total_incidents,
@@ -7009,6 +7195,23 @@ def export_incidents_pdf():
         admins_result = supabase.table('accounts_admin').select('*').execute()
         admins = {a['admin_id']: a for a in admins_result.data} if admins_result.data else {}
         
+        # Get resolution reports from incident_resolution_reports table
+        resolution_reports_result = supabase.table(RESOLUTION_REPORTS_TABLE).select('*').execute()
+        resolution_reports = {}
+        if resolution_reports_result.data:
+            for report in resolution_reports_result.data:
+                icd_id = str(report.get('icd_id', ''))
+                if icd_id:
+                    # Store the most recent resolution report for each incident
+                    if icd_id not in resolution_reports:
+                        resolution_reports[icd_id] = report
+                    else:
+                        # If multiple reports exist, keep the most recent one
+                        existing_created = resolution_reports[icd_id].get('created_at', '')
+                        new_created = report.get('created_at', '')
+                        if new_created > existing_created:
+                            resolution_reports[icd_id] = report
+        
         # Process incidents with join data and filters
         processed_incidents = []
         for incident in incidents:
@@ -7119,29 +7322,12 @@ def export_incidents_pdf():
                     if not (-90 <= lat_float <= 90) or not (-180 <= lng_float <= 180):
                         location_name = f"Lat: {lat_float:.6f}, Lng: {lng_float:.6f}"
                     else:
-                        # Always try to get location name from coordinates first
-                        location_name = get_location_name_from_coords(lat_float, lng_float)
+                        # Calculate distance from UMAK first (fast, no API call)
+                        distance = math.sqrt((lat_float - UMAK_LAT)**2 + (lng_float - UMAK_LNG)**2) * 111  # km
                         
-                        # If we got a location name from coordinates, use it
-                        if location_name and location_name.strip():
-                            # If within UMAK area and has building info, append building details
-                            distance = math.sqrt((lat_float - UMAK_LAT)**2 + (lng_float - UMAK_LNG)**2) * 111  # km
-                            if distance < 1.0 and building:
-                                building_parts = []
-                                if building:
-                                    building_parts.append(f"Building: {building}")
-                                if floor:
-                                    building_parts.append(f"Floor: {floor}")
-                                if room:
-                                    building_parts.append(f"Room: {room}")
-                                if building_parts:
-                                    location_name += f" ({', '.join(building_parts)})"
-                        else:
-                            # No location name from geocoding, calculate distance from UMAK
-                            distance = math.sqrt((lat_float - UMAK_LAT)**2 + (lng_float - UMAK_LNG)**2) * 111  # km
-                            
-                            # If within 1km and has building info, consider it UMAK
-                            if distance < 1.0 and building:
+                        # If within 1km of UMAK, consider it UMAK Campus (no need for geocoding)
+                        if distance < 1.0:
+                            if building:
                                 location_parts = []
                                 if building:
                                     location_parts.append(f"Building: {building}")
@@ -7151,11 +7337,33 @@ def export_incidents_pdf():
                                     location_parts.append(f"Room: {room}")
                                 location_name = ", ".join(location_parts) if location_parts else 'UMAK Campus'
                             else:
-                                # Fallback to coordinates if no location name found
-                                location_name = f"Lat: {lat_float:.6f}, Lng: {lng_float:.6f}"
+                                location_name = 'UMAK Campus'
+                        else:
+                            # For locations outside UMAK, try reverse geocoding
+                            try:
+                                print(f"Attempting geocoding for incident {incident.get('icd_id')} at lat={lat_float}, lng={lng_float}")
+                                location_name = get_location_name_from_coords(lat_float, lng_float, use_cache=True)
+                                
+                                # If we got a location name from coordinates, use it
+                                if location_name and location_name.strip():
+                                    # Clean up the location name - remove "Philippines" if it's redundant
+                                    if location_name.endswith(', Philippines'):
+                                        location_name = location_name[:-13].strip()
+                                    print(f"Geocoding successful for incident {incident.get('icd_id')}: {location_name[:50]}")
+                                else:
+                                    # Geocoding failed or returned None, but we have coordinates
+                                    print(f"Geocoding returned None for incident {incident.get('icd_id')}, using 'External Location'")
+                                    location_name = 'External Location'
+                            except Exception as geo_error:
+                                print(f"Geocoding exception for incident {incident.get('icd_id')}: {geo_error}")
+                                import traceback
+                                traceback.print_exc()
+                                # Geocoding failed, but we have coordinates - show generic location
+                                location_name = 'External Location'
                 except Exception as e:
                     print(f"Error computing location name for incident {incident.get('icd_id')}: {e}")
-                    location_name = f"Lat: {lat}, Lng: {lng}" if lat and lng else 'N/A'
+                    # On error, set to N/A so template can show coordinates separately
+                    location_name = 'N/A'
             elif building:
                 # Has building info but no coordinates
                 location_parts = []
@@ -7170,6 +7378,13 @@ def export_incidents_pdf():
                 location_name = 'N/A'
             
             incident_data['computed_location_name'] = location_name
+            
+            # Attach resolution report if incident is resolved
+            incident_id_str = str(incident.get('icd_id', ''))
+            if incident_id_str in resolution_reports:
+                incident_data['resolution_report'] = resolution_reports[incident_id_str]
+            else:
+                incident_data['resolution_report'] = None
             
             # Calculate recency for time-based color coding
             if incident.get('icd_timestamp'):
@@ -7414,6 +7629,433 @@ def export_incident_pdf(incident_id):
     except Exception as e:
         print(f"Error exporting incident to PDF: {e}")
         flash(f'Error generating export: {str(e)}', 'error')
+        return redirect(url_for('incident_management'))
+
+@app.route('/incident/<incident_id>/resolution-report', methods=['GET'])
+def export_incident_resolution_report(incident_id):
+    """Export individual incident resolution report"""
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    
+    try:
+        # Get incident details
+        incident = get_incident_details(incident_id)
+        if not incident:
+            flash('Incident not found', 'error')
+            return redirect(url_for('incident_management'))
+        
+        # Check if incident is resolved
+        if incident.get('icd_status') != 'Resolved':
+            flash('This incident is not resolved. Resolution reports are only available for resolved incidents.', 'error')
+            return redirect(url_for('incident_management'))
+        
+        # Get resolution report from database
+        try:
+            resolution_result = supabase.table(RESOLUTION_REPORTS_TABLE).select('*').eq('icd_id', str(incident_id)).order('created_at', desc=True).limit(1).execute()
+            if not resolution_result.data or len(resolution_result.data) == 0:
+                flash('No resolution report found for this incident.', 'error')
+                return redirect(url_for('incident_management'))
+            
+            report = resolution_result.data[0]
+            
+            # Parse summary_details if it's a JSON string
+            if report.get('summary_details') and isinstance(report.get('summary_details'), str):
+                try:
+                    import json
+                    report['summary_details'] = json.loads(report['summary_details'])
+                except:
+                    pass  # Keep as string if parsing fails
+            
+            # Get student data if available
+            if incident.get('user_id'):
+                try:
+                    student_result = supabase.table('accounts_student').select('*').eq('user_id', incident.get('user_id')).execute()
+                    if student_result.data:
+                        student = student_result.data[0]
+                        report['student_id'] = student.get('student_id', 'N/A')
+                        report['student_name'] = student.get('full_name', incident.get('student_name', 'N/A'))
+                except:
+                    report['student_id'] = incident.get('student_number', 'N/A')
+                    report['student_name'] = incident.get('student_name', 'N/A')
+            else:
+                report['student_id'] = 'N/A'
+                report['student_name'] = 'N/A'
+            
+            # Get location name using reverse geocoding
+            location_name = 'N/A'
+            lat = incident.get('icd_lat')
+            lng = incident.get('icd_lng')
+            building = incident.get('icd_location_building', '')
+            floor = incident.get('icd_location_floor', '')
+            room = incident.get('icd_location_room', '')
+            
+            if lat and lng:
+                try:
+                    lat_float = float(lat)
+                    lng_float = float(lng)
+                    
+                    # Validate coordinates
+                    if (-90 <= lat_float <= 90) and (-180 <= lng_float <= 180):
+                        # Use reverse geocoding to get location name
+                        location_name = get_location_name_from_coords(lat_float, lng_float)
+                        
+                        # If we got a location name, use it
+                        if location_name and location_name.strip() and location_name != 'N/A':
+                            # Clean up the location name - remove "Philippines" if it's redundant
+                            if location_name.endswith(', Philippines'):
+                                location_name = location_name[:-13].strip()
+                            # If within UMAK area and has building info, append building details
+                            distance = math.sqrt((lat_float - UMAK_LAT)**2 + (lng_float - UMAK_LNG)**2) * 111  # km
+                            if distance < 1.0 and building:
+                                building_parts = []
+                                if building:
+                                    building_parts.append(f"Building: {building}")
+                                if floor:
+                                    building_parts.append(f"Floor: {floor}")
+                                if room:
+                                    building_parts.append(f"Room: {room}")
+                                if building_parts:
+                                    location_name += f" ({', '.join(building_parts)})"
+                        else:
+                            # No location name from geocoding, check if it's UMAK based on distance
+                            distance = math.sqrt((lat_float - UMAK_LAT)**2 + (lng_float - UMAK_LNG)**2) * 111  # km
+                            if distance < 1.0:
+                                if building:
+                                    building_parts = []
+                                    if building:
+                                        building_parts.append(f"Building: {building}")
+                                    if floor:
+                                        building_parts.append(f"Floor: {floor}")
+                                    if room:
+                                        building_parts.append(f"Room: {room}")
+                                    location_name = ", ".join(building_parts) if building_parts else 'UMAK Campus'
+                                else:
+                                    location_name = 'UMAK Campus'
+                            else:
+                                location_name = 'N/A'
+                except Exception as e:
+                    print(f"Error computing location name: {e}")
+                    location_name = 'N/A'
+            elif building:
+                # Has building info but no coordinates
+                building_parts = []
+                if building:
+                    building_parts.append(f"Building: {building}")
+                if floor:
+                    building_parts.append(f"Floor: {floor}")
+                if room:
+                    building_parts.append(f"Room: {room}")
+                location_name = ", ".join(building_parts) if building_parts else 'UMAK Campus'
+            
+            # Enrich report with incident data
+            report['icd_lat'] = lat
+            report['icd_lng'] = lng
+            report['location_name'] = location_name
+            
+            # Get incident type
+            if incident.get('icd_category') == 'Medical':
+                report['incident_type'] = incident.get('icd_medical_type', 'N/A')
+            elif incident.get('icd_category') == 'Security':
+                report['incident_type'] = incident.get('icd_security_type', 'N/A')
+            elif incident.get('icd_category') == 'University':
+                report['incident_type'] = incident.get('icd_university_type', 'N/A')
+            else:
+                report['incident_type'] = 'N/A'
+            report['category'] = incident.get('icd_category', 'N/A')
+            
+        except Exception as e:
+            print(f"Error fetching resolution report: {e}")
+            flash('Error loading resolution report.', 'error')
+            return redirect(url_for('incident_management'))
+        
+        # Get current admin info
+        admin_name = session.get('admin_name', 'Administrator')
+        ph_time = get_philippines_time()
+        
+        return render_template('incident_resolution_report.html',
+                             report=report,
+                             incident=incident,
+                             admin_name=admin_name,
+                             export_date=ph_time.strftime('%B %d, %Y %I:%M %p'))
+        
+    except Exception as e:
+        print(f"Error exporting resolution report: {e}")
+        import traceback
+        traceback.print_exc()
+        flash(f'Error generating resolution report: {str(e)}', 'error')
+        return redirect(url_for('incident_management'))
+
+@app.route('/incidents/resolution-bundle', methods=['GET'])
+def export_resolution_bundle():
+    """Export resolution bundle report with filters"""
+    if 'admin_id' not in session:
+        return redirect(url_for('login'))
+    
+    try:
+        # Get filter parameters
+        status_filter = request.args.get('status', 'Resolved')
+        category_filter = request.args.get('category', 'All')
+        search_term = request.args.get('search', '')
+        sort_order = request.args.get('sort', 'recent')
+        start_date = request.args.get('start_date', '')
+        end_date = request.args.get('end_date', '')
+        
+        # Get resolution reports from database
+        query = supabase.table(RESOLUTION_REPORTS_TABLE).select('*')
+        
+        # Apply date filters if provided
+        if start_date:
+            try:
+                start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+                start_dt = PHILIPPINES_TZ.localize(start_dt)
+                query = query.gte('resolved_at', start_dt.isoformat())
+            except:
+                pass
+        
+        if end_date:
+            try:
+                end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+                end_dt = PHILIPPINES_TZ.localize(end_dt).replace(hour=23, minute=59, second=59)
+                query = query.lte('resolved_at', end_dt.isoformat())
+            except:
+                pass
+        
+        # Get all resolution reports
+        reports_result = query.execute()
+        all_reports = reports_result.data if reports_result.data else []
+        
+        # Get incidents for additional data
+        incidents_result = supabase.table('alert_incidents').select('*').execute()
+        incidents = {str(inc.get('icd_id')): inc for inc in (incidents_result.data or [])}
+        
+        # Get students for additional data
+        students_result = supabase.table('accounts_student').select('*').execute()
+        students = {str(s.get('user_id')): s for s in (students_result.data or [])}
+        
+        # Process and enrich resolution reports
+        processed_reports = []
+        for report in all_reports:
+            incident_id = str(report.get('icd_id', ''))
+            incident = incidents.get(incident_id, {})
+            
+            # Parse summary_details if it's a JSON string
+            if report.get('summary_details') and isinstance(report.get('summary_details'), str):
+                try:
+                    import json
+                    report['summary_details'] = json.loads(report['summary_details'])
+                except:
+                    pass  # Keep as string if parsing fails
+            
+            # Get location name using reverse geocoding
+            location_name = 'N/A'
+            lat = incident.get('icd_lat')
+            lng = incident.get('icd_lng')
+            building = incident.get('icd_location_building', '')
+            floor = incident.get('icd_location_floor', '')
+            room = incident.get('icd_location_room', '')
+            
+            if lat and lng:
+                try:
+                    lat_float = float(lat)
+                    lng_float = float(lng)
+                    
+                    # Validate coordinates
+                    if (-90 <= lat_float <= 90) and (-180 <= lng_float <= 180):
+                        # Use reverse geocoding to get location name
+                        location_name = get_location_name_from_coords(lat_float, lng_float)
+                        
+                        # If we got a location name, use it
+                        if location_name and location_name.strip() and location_name != 'N/A':
+                            # Clean up the location name - remove "Philippines" if it's redundant
+                            if location_name.endswith(', Philippines'):
+                                location_name = location_name[:-13].strip()
+                            # If within UMAK area and has building info, append building details
+                            distance = math.sqrt((lat_float - UMAK_LAT)**2 + (lng_float - UMAK_LNG)**2) * 111  # km
+                            if distance < 1.0 and building:
+                                building_parts = []
+                                if building:
+                                    building_parts.append(f"Building: {building}")
+                                if floor:
+                                    building_parts.append(f"Floor: {floor}")
+                                if room:
+                                    building_parts.append(f"Room: {room}")
+                                if building_parts:
+                                    location_name += f" ({', '.join(building_parts)})"
+                        else:
+                            # No location name from geocoding, check if it's UMAK based on distance
+                            distance = math.sqrt((lat_float - UMAK_LAT)**2 + (lng_float - UMAK_LNG)**2) * 111  # km
+                            if distance < 1.0:
+                                if building:
+                                    building_parts = []
+                                    if building:
+                                        building_parts.append(f"Building: {building}")
+                                    if floor:
+                                        building_parts.append(f"Floor: {floor}")
+                                    if room:
+                                        building_parts.append(f"Room: {room}")
+                                    location_name = ", ".join(building_parts) if building_parts else 'UMAK Campus'
+                                else:
+                                    location_name = 'UMAK Campus'
+                            else:
+                                location_name = 'N/A'
+                except Exception as e:
+                    print(f"Error computing location name: {e}")
+                    location_name = 'N/A'
+            elif building:
+                # Has building info but no coordinates
+                building_parts = []
+                if building:
+                    building_parts.append(f"Building: {building}")
+                if floor:
+                    building_parts.append(f"Floor: {floor}")
+                if room:
+                    building_parts.append(f"Room: {room}")
+                location_name = ", ".join(building_parts) if building_parts else 'UMAK Campus'
+            
+            # Get incident type
+            incident_type = 'N/A'
+            if incident.get('icd_category') == 'Medical':
+                incident_type = incident.get('icd_medical_type', 'N/A')
+            elif incident.get('icd_category') == 'Security':
+                incident_type = incident.get('icd_security_type', 'N/A')
+            elif incident.get('icd_category') == 'University':
+                incident_type = incident.get('icd_university_type', 'N/A')
+            
+            # Get student data
+            student_id = 'N/A'
+            student_name = 'N/A'
+            if incident.get('user_id'):
+                student = students.get(str(incident.get('user_id')))
+                if student:
+                    student_id = student.get('student_id', 'N/A')
+                    student_name = student.get('full_name', 'N/A')
+            
+            # Enrich report with incident data
+            enriched_report = report.copy()
+            enriched_report['icd_lat'] = incident.get('icd_lat')
+            enriched_report['icd_lng'] = incident.get('icd_lng')
+            enriched_report['location_name'] = location_name
+            enriched_report['incident_type'] = incident_type
+            enriched_report['category'] = incident.get('icd_category') or report.get('category', 'N/A')
+            enriched_report['student_id'] = student_id
+            enriched_report['student_name'] = student_name
+            
+            # Apply filters
+            if category_filter != 'All' and enriched_report.get('category') != category_filter:
+                continue
+            
+            if search_term:
+                search_lower = search_term.lower()
+                if not any(search_lower in str(v).lower() for v in [
+                    enriched_report.get('icd_id', ''),
+                    enriched_report.get('resolved_id', ''),
+                    enriched_report.get('student_name', ''),
+                    enriched_report.get('resolved_by_name', '')
+                ]):
+                    continue
+            
+            processed_reports.append(enriched_report)
+        
+        # Sort reports
+        if sort_order == 'old':
+            processed_reports.sort(key=lambda x: x.get('resolved_at', ''))
+        else:
+            processed_reports.sort(key=lambda x: x.get('resolved_at', ''), reverse=True)
+        
+        # Format dates for display
+        formatted_start_date = ''
+        if start_date:
+            try:
+                dt = datetime.strptime(start_date, '%Y-%m-%d')
+                formatted_start_date = dt.strftime('%B %d, %Y')
+            except:
+                formatted_start_date = start_date
+        
+        formatted_end_date = ''
+        if end_date:
+            try:
+                dt = datetime.strptime(end_date, '%Y-%m-%d')
+                formatted_end_date = dt.strftime('%B %d, %Y')
+            except:
+                formatted_end_date = end_date
+        
+        # Calculate status distribution from incidents
+        status_distribution = {
+            'total': 0,
+            'active': 0,
+            'pending': 0,
+            'resolved': 0,
+            'cancelled': 0
+        }
+        
+        # Calculate location distribution
+        location_distribution = {
+            'umak': 0,
+            'external': 0
+        }
+        
+        # Get all incidents to calculate distributions
+        all_incidents_result = supabase.table('alert_incidents').select('*').execute()
+        all_incidents = all_incidents_result.data if all_incidents_result.data else []
+        
+        for inc in all_incidents:
+            # Status distribution
+            status = inc.get('icd_status', '')
+            status_distribution['total'] += 1
+            if status == 'Active':
+                status_distribution['active'] += 1
+            elif status == 'Pending':
+                status_distribution['pending'] += 1
+            elif status == 'Resolved':
+                status_distribution['resolved'] += 1
+            elif status == 'Cancelled':
+                status_distribution['cancelled'] += 1
+            
+            # Location distribution
+            lat = inc.get('icd_lat')
+            lng = inc.get('icd_lng')
+            building = inc.get('icd_location_building', '')
+            
+            if lat and lng:
+                try:
+                    lat_float = float(lat)
+                    lng_float = float(lng)
+                    # Calculate distance from UMAK
+                    distance = math.sqrt((lat_float - UMAK_LAT)**2 + (lng_float - UMAK_LNG)**2) * 111  # km
+                    if distance < 1.0 or building:
+                        location_distribution['umak'] += 1
+                    else:
+                        location_distribution['external'] += 1
+                except:
+                    if building:
+                        location_distribution['umak'] += 1
+                    else:
+                        location_distribution['external'] += 1
+            elif building:
+                location_distribution['umak'] += 1
+            else:
+                location_distribution['external'] += 1
+        
+        # Get current admin info
+        admin_name = session.get('admin_name', 'Administrator')
+        ph_time = get_philippines_time()
+        
+        return render_template('incident_resolution_bundle.html',
+                             resolution_reports=processed_reports,
+                             start_date=formatted_start_date,
+                             end_date=formatted_end_date,
+                             category_filter=category_filter,
+                             search_term=search_term,
+                             status_distribution=status_distribution,
+                             location_distribution=location_distribution,
+                             admin_name=admin_name,
+                             export_date=ph_time.strftime('%B %d, %Y %I:%M %p'))
+        
+    except Exception as e:
+        print(f"Error generating resolution bundle: {e}")
+        import traceback
+        traceback.print_exc()
+        flash(f'Error generating resolution bundle: {str(e)}', 'error')
         return redirect(url_for('incident_management'))
 
 @app.route('/api/incidents/export-excel', methods=['POST'])

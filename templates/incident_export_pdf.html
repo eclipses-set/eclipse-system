@@ -592,38 +592,12 @@
                 </td>
                 <td class="description-cell" style="font-size: 8.5pt; padding: 8px;">
                     {% if incident.resolution_report and incident.icd_status == 'Resolved' %}
-                        <div style="margin-bottom: 6px;">
-                            <strong>Resolution ID:</strong><br>
-                            <span style="font-size: 8pt;">{{ incident.resolution_report.resolved_id or 'N/A' }}</span>
-                        </div>
-                        <div style="margin-bottom: 6px;">
-                            <strong>Resolved By:</strong><br>
-                            <span style="font-size: 8pt;">{{ incident.resolution_report.resolved_by_name or incident.resolution_report.resolved_by or 'N/A' }}</span>
-                        </div>
-                        {% if incident.resolution_report.response_minutes %}
-                        <div style="margin-bottom: 6px;">
-                            <strong>Response Time:</strong><br>
-                            <span style="font-size: 8pt;">
-                                {% set hours = (incident.resolution_report.response_minutes / 60)|int %}
-                                {% set minutes = (incident.resolution_report.response_minutes % 60)|int %}
-                                {% if hours > 0 %}
-                                    {{ hours }}h{% if minutes > 0 %} {{ minutes }}m{% endif %}
-                                {% else %}
-                                    {{ minutes }}m
-                                {% endif %}
-                            </span>
-                        </div>
-                        {% endif %}
-                        {% if incident.resolution_report.summary_headline %}
-                        <div style="margin-bottom: 6px;">
-                            <strong>Headline:</strong><br>
-                            <span style="font-size: 8pt;">{{ incident.resolution_report.summary_headline }}</span>
-                        </div>
-                        {% endif %}
                         {% if incident.resolution_report.summary_notes %}
-                        <div style="margin-top: 4px; font-size: 7.5pt; color: #333; max-height: 80px; overflow: hidden;">
-                            {{ incident.resolution_report.summary_notes[:200] }}{% if incident.resolution_report.summary_notes|length > 200 %}...{% endif %}
-                        </div>
+                            <div style="font-size: 8pt; color: #000; line-height: 1.4; white-space: pre-wrap; max-height: 100px; overflow: hidden;">
+                                {{ incident.resolution_report.summary_notes }}
+                            </div>
+                        {% else %}
+                            <span style="font-style: italic; color: #666;">No summary notes available</span>
                         {% endif %}
                     {% else %}
                         <span style="font-style: italic; color: #666;">—</span>
@@ -641,18 +615,34 @@
                         <div class="type-item"><span class="type">University:</span> {{ incident.icd_university_type }}</div>
                     {% endif %}
                 </td>
-                <td>
-                    <div class="coordinates">
+                <td style="font-size: 8pt;">
+                    {% set location_name = incident.computed_location_name or 'N/A' %}
+                    {% set is_coordinate_format = location_name.startswith('Lat:') if location_name != 'N/A' else False %}
+                    
+                    {% if location_name != 'N/A' and not is_coordinate_format %}
+                        <div style="font-weight: 600; margin-bottom: 2px; color: #000;">
+                            Location:<br>
+                            {{ location_name }}
+                        </div>
                         {% if incident.icd_lat and incident.icd_lng %}
-                            Lat: {{ "%.6f"|format(incident.icd_lat) }}<br>
-                            Lng: {{ "%.6f"|format(incident.icd_lng) }}
-                        {% else %}
-                            N/A
+                            <div style="font-size: 7pt; color: #666; margin-top: 4px;">
+                                Coordinates:<br>
+                                {{ "%.6f"|format(incident.icd_lat|float) }}, {{ "%.6f"|format(incident.icd_lng|float) }}
+                            </div>
                         {% endif %}
-                    </div>
-                    <div class="location-name">
-                        {{ incident.computed_location_name or 'N/A' }}
-                    </div>
+                    {% elif incident.icd_lat and incident.icd_lng %}
+                        <div style="font-weight: 600; margin-bottom: 2px; color: #000;">
+                            Location: N/A
+                        </div>
+                        <div style="font-size: 7pt; color: #666; margin-top: 4px;">
+                            Coordinates:<br>
+                            {{ "%.6f"|format(incident.icd_lat|float) }}, {{ "%.6f"|format(incident.icd_lng|float) }}
+                        </div>
+                    {% else %}
+                        <div style="font-weight: 600; color: #000;">
+                            N/A
+                        </div>
+                    {% endif %}
                 </td>
                 <td class="description-cell">
                     {% if incident.icd_description %}
